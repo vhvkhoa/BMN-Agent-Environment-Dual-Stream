@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 import json
-import torch.utils.data as data
+from torch.utils.data.dataset import Dataset
 import torch
 from utils import ioa_with_anchors, iou_with_anchors
 
@@ -13,7 +13,7 @@ def load_json(file):
         return json_data
 
 
-class VideoDataSet(data.Dataset):
+class VideoDataSet(Dataset):
     def __init__(self, opt, subset="train"):
         self.temporal_scale = opt["temporal_scale"]  # 100
         self.temporal_gap = 1. / self.temporal_scale
@@ -43,7 +43,7 @@ class VideoDataSet(data.Dataset):
         if self.mode == "train":
             match_score_start, match_score_end, confidence_score = self._get_train_label(index, self.anchor_xmin,
                                                                                          self.anchor_xmax)
-            return video_data,confidence_score, match_score_start, match_score_end
+            return video_data, confidence_score, match_score_start, match_score_end
         else:
             return index, video_data
 
@@ -60,8 +60,8 @@ class VideoDataSet(data.Dataset):
         match_map = np.transpose(match_map, [1, 0, 2])  # [0,1] [1,2] [2,3].....[99,100]
         match_map = np.reshape(match_map, [-1, 2])  # [0,2] [1,3] [2,4].....[99,101]   # duration x start
         self.match_map = match_map  # duration is same in row, start is same in col
-        self.anchor_xmin = [self.temporal_gap * (i-0.5) for i in range(self.temporal_scale)]
-        self.anchor_xmax = [self.temporal_gap * (i+0.5) for i in range(1, self.temporal_scale + 1)]
+        self.anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(self.temporal_scale)]
+        self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_scale + 1)]
 
     def _load_file(self, index):
         video_name = self.video_list[index]
@@ -138,6 +138,6 @@ if __name__ == '__main__':
     train_loader = torch.utils.data.DataLoader(VideoDataSet(opt, subset="train"),
                                                batch_size=opt["batch_size"], shuffle=True,
                                                num_workers=8, pin_memory=True)
-    for a,b,c,d in train_loader:
-        print(a.shape,b.shape,c.shape,d.shape)
+    for a, b, c, d in train_loader:
+        print(a.shape, b.shape, c.shape, d.shape)
         break
