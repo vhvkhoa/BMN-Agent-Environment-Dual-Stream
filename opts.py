@@ -103,4 +103,3 @@ def parse_opt():
     args = parser.parse_args()
 
     return args
-
