@@ -15,47 +15,6 @@ from eval import evaluation_proposal
 sys.dont_write_bytecode = True
 
 
-def train_collate_fn(batch):
-    batch_env_features, batch_agent_features, confidence_labels, start_labels, end_labels = zip(*batch)
-
-    # Sort videos in batch by temporal lengths
-    len_sorted_ids = sorted(range(len(batch_env_features)), key=lambda i: len(batch_env_features[i]))
-    batch_env_features = [batch_env_features[i] for i in len_sorted_ids]
-    batch_agent_features = [batch_agent_features[i] for i in len_sorted_ids]
-    confidence_labels = [confidence_labels[i] for i in len_sorted_ids]
-    start_labels = [start_labels[i] for i in len_sorted_ids]
-    end_labels = [end_labels[i] for i in len_sorted_ids]
-
-    # Create agent feature padding mask
-    batch_agent_box_lengths = [[len(t_feature) for t_feature in agent_features] for agent_features in batch_agent_features]
-    max_box_dim = torch.max(batch_agent_box_lengths)
-    batch_agent_features_padding_mask = torch.arange(max_box_dim)[None, None, :] < batch_agent_box_lengths[:, :, None]
-
-    # Declare important dimensions
-    batch_size = batch_env_features
-    max_temporal_dim = max([len(env_features) for env_features in batch_env_features])
-    feature_dim = len(batch_env_features[0][0])
-    
-    # Pad environment features at temporal dimension
-    padded_batch_env_features = torch.zeros(batch_size, max_temporal_dim, feature_dim)
-    for i, env_features in enumerate(batch_env_features):
-        for j, temporal_features in env_features:
-            padded_batch_env_features[i][j] = temporal_features
-    
-    # Pad agent features at temporal and box dimension
-    padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
-    for i, agent_features in enumerate(batch_agent_features):
-        for j, temporal_features in enumerate(agent_features):
-            for k, box_features in enumerate(temporal_features):
-                padded_batch_agent_features[i][j][k] = box_features
-    
-    return padded_batch_env_features, padded_batch_agent_features, confidence_labels, start_labels, end_labels
-
-
-def test_collate_fn(batch):
-    return
-
-
 def train_BMN(data_loader, model, optimizer, epoch, bm_mask):
     model.train()
     epoch_pemreg_loss = 0
