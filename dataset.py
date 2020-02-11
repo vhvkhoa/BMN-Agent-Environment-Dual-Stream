@@ -28,9 +28,9 @@ def train_collate_fn(batch):
     len_sorted_ids = sorted(range(len(batch_env_features)), key=lambda i: len(batch_env_features[i]))
     batch_env_features = [batch_env_features[i] for i in len_sorted_ids]
     batch_agent_features = [batch_agent_features[i] for i in len_sorted_ids]
-    confidence_labels = torch.tensor([confidence_labels[i] for i in len_sorted_ids])
-    start_labels = torch.tensor([start_labels[i] for i in len_sorted_ids])
-    end_labels = torch.tensor([end_labels[i] for i in len_sorted_ids])
+    confidence_labels = torch.cat([confidence_labels[i] for i in len_sorted_ids], dim=0)
+    start_labels = torch.cat([start_labels[i] for i in len_sorted_ids], dim=0)
+    end_labels = torch.cat([end_labels[i] for i in len_sorted_ids], dim=0)
 
     # Create agent feature padding mask
     batch_agent_box_lengths = torch.nn.utils.rnn.pad_sequence([
