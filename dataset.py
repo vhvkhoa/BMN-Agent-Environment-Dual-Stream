@@ -49,7 +49,7 @@ def train_collate_fn(batch):
     for i, agent_features in enumerate(batch_agent_features):
         for j, temporal_features in enumerate(agent_features):
             for k, box_features in enumerate(temporal_features):
-                padded_batch_env_features[i, j, k] = box_features
+                padded_batch_env_features[i, j, k] = torch.tensor(box_features)
     print(padded_batch_agent_features)
     
     return padded_batch_env_features, padded_batch_agent_features, confidence_labels, start_labels, end_labels
