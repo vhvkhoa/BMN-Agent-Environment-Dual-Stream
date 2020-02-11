@@ -43,14 +43,14 @@ def train_collate_fn(batch):
 
     # Pad environment features at temporal dimension
     padded_batch_env_features = pad_sequence(batch_env_features, batch_first=True)
-    print(padded_batch_env_features)
+    print(padded_batch_env_features.size())
     
     # Pad agent features at temporal and box dimension
     for i, agent_features in enumerate(batch_agent_features):
         agent_features = pad_sequence(agent_features, batch_first=True)
         batch_agent_features[i] = F.pad(agent_features, [0, 0, 0, max_box_dim - agent_features.size(1)])
     padded_batch_agent_features = pad_sequence(batch_agent_features, batch_first=True)
-    print(padded_batch_agent_features)
+    print(padded_batch_agent_features.size())
     
     return padded_batch_env_features, padded_batch_agent_features, confidence_labels, start_labels, end_labels
 
