@@ -157,7 +157,7 @@ class VideoDataSet(Dataset):
             tmp_gt_iou_map = iou_with_anchors(
                 match_map[:, 0], match_map[:, 1], tmp_start, tmp_end)
             tmp_gt_iou_map = np.reshape(tmp_gt_iou_map,
-                                        [self.temporal_scale, self.temporal_scale])
+                                        [math.floor(duration), math.floor(duration)])
             gt_iou_map.append(tmp_gt_iou_map)
         gt_iou_map = np.array(gt_iou_map)
         gt_iou_map = np.max(gt_iou_map, axis=0)
