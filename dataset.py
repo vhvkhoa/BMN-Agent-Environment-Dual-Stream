@@ -21,6 +21,8 @@ def load_json(file):
 
 def train_collate_fn(batch):
     batch_env_features, batch_agent_features, confidence_labels, start_labels, end_labels = zip(*batch)
+    for conf, sl, el in zip(confidence_labels, start_labels, end_labels):
+        print(conf.size(), sl.size(), el.size())
 
     # Sort videos in batch by temporal lengths
     len_sorted_ids = sorted(range(len(batch_env_features)), key=lambda i: len(batch_env_features[i]))
@@ -84,7 +86,6 @@ class VideoDataSet(Dataset):
         env_timestamps, env_features, agent_features = self._load_item(index)
         if self.split == "train":
             match_score_start, match_score_end, confidence_score = self._get_train_label(index)
-            print(confidence_score.size(), match_score_start.size(), match_score_end.size())
             return env_features, agent_features, confidence_score, match_score_start, match_score_end
         else:
             return index, env_features, agent_features
