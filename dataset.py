@@ -119,7 +119,8 @@ class VideoDataSet(Dataset):
         '''
         env_features_dict = load_json(os.path.join(self.env_feature_dir, video_name + '.json'))
         env_timestamps = sorted(env_features_dict.keys(), key=lambda x: float(x))
-        env_features = torch.transpose(torch.tensor([env_features_dict[t] for t in env_timestamps]), 0, 1).float()
+        env_features = torch.tensor([env_features_dict[t] for t in env_timestamps]).squeeze(1)
+        env_features = torch.transpose(env_features, 0, 1).float()
         print(env_features.size())
 
         '''
