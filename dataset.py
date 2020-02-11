@@ -9,7 +9,7 @@ from torch import nn
 from torch.utils.data.dataset import Dataset
 from utils import ioa_with_anchors, iou_with_anchors
 
-from defaults import get_cfg
+from config.defaults import get_cfg
 
 
 def load_json(file):
