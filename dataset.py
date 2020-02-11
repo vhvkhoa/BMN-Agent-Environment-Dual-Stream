@@ -47,13 +47,10 @@ def train_collate_fn(batch):
     batch_size, max_temporal_dim, feature_dim = padded_batch_env_features.size()
     padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
 
-    print(len(batch_agent_features))
     for i, temporal_features in enumerate(batch_agent_features):
-        print(len(temporal_features))
         for j, box_features in enumerate(temporal_features):
-            print(len(box_features))
             if len(box_features) > 0:
-                padded_batch_env_features[i, j] = torch.tensor(box_features)
+                padded_batch_env_features[i, j, :len(box_features)] = torch.tensor(box_features)
     print(padded_batch_agent_features)
     
     return padded_batch_env_features, padded_batch_agent_features, confidence_labels, start_labels, end_labels
