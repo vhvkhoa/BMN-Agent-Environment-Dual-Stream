@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import json
+import math
 
 import numpy as np
 
@@ -61,8 +62,6 @@ def test_collate_fn(batch):
 
 class VideoDataSet(Dataset):
     def __init__(self, cfg, split="train"):
-        self.temporal_scale = cfg.DATA.TEMPORAL_SCALE  # 100
-        self.temporal_gap = 1. / self.temporal_scale
         self.split = split
         self.env_feature_dir = cfg.DATA.ENV_FEATURE_DIR
         self.agent_feature_dir = cfg.DATA.AGENT_FEATURE_DIR
@@ -91,22 +90,24 @@ class VideoDataSet(Dataset):
             return index, env_features, agent_features
 
     def _get_match_map(self, temporal_scale):
+        temporal_gap = 1. / temporal_scale
+        temporal_scale = math.floor(temporal_scale)
         match_map = []
         for idx in range(temporal_scale):
             tmp_match_window = []
-            xmin = self.temporal_gap * idx
+            xmin = temporal_gap * idx
             for jdx in range(1, temporal_scale + 1):
-                xmax = xmin + self.temporal_gap * jdx
+                xmax = xmin + temporal_gap * jdx
                 tmp_match_window.append([xmin, xmax])
             match_map.append(tmp_match_window)
         match_map = np.array(match_map)  # 100x100x2
         match_map = np.transpose(match_map, [1, 0, 2])  # [0,1] [1,2] [2,3].....[99,100]
         match_map = np.reshape(match_map, [-1, 2])  # [0,2] [1,3] [2,4].....[99,101]   # duration x start
 
-        anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(temporal_scale)]
-        anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, temporal_scale + 1)]
+        anchor_xmin = [temporal_gap * (i - 0.5) for i in range(temporal_scale)]
+        anchor_xmax = [temporal_gap * (i + 0.5) for i in range(1, temporal_scale + 1)]
 
-        return match_map, anchor_xmin, anchor_xmax
+        return match_map, anchor_xmin, anchor_xmax, temporal_gap
 
     def _load_item(self, index):
         video_name = self.video_names[index]
@@ -142,7 +143,7 @@ class VideoDataSet(Dataset):
         duration = video_info['duration']
         video_labels = video_info['events']  # the measurement is second, not frame
 
-        match_map, anchor_xmin, anchor_xmax = self._get_match_map(duration)
+        match_map, anchor_xmin, anchor_xmax, temporal_gap = self._get_match_map(duration)
 
         ##############################################################################################
         # change the measurement from second to percentage
@@ -169,7 +170,7 @@ class VideoDataSet(Dataset):
         gt_xmins = gt_bbox[:, 0]
         gt_xmaxs = gt_bbox[:, 1]
         gt_lens = gt_xmaxs - gt_xmins
-        gt_len_small = 3 * self.temporal_gap  # np.maximum(self.temporal_gap, self.boundary_ratio * gt_lens)
+        gt_len_small = 3 * temporal_gap  # np.maximum(self.temporal_gap, self.boundary_ratio * gt_lens)
         gt_start_bboxs = np.stack((gt_xmins - gt_len_small / 2, gt_xmins + gt_len_small / 2), axis=1)
         gt_end_bboxs = np.stack((gt_xmaxs - gt_len_small / 2, gt_xmaxs + gt_len_small / 2), axis=1)
         #####################################################################################################
