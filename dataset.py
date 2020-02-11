@@ -46,9 +46,13 @@ def train_collate_fn(batch):
     # Pad agent features at temporal and box dimension
     batch_size, max_temporal_dim, feature_dim = padded_batch_env_features.size()
     padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
+    print(len(batch_agent_features))
     for i, agent_features in enumerate(batch_agent_features):
+        print(len(agent_features))
         for j, temporal_features in enumerate(agent_features):
+            print(len(temporal_features))
             for k, box_features in enumerate(temporal_features):
+                print(len(box_features))
                 if len(box_features) > 0:
                     print(torch.tensor(box_features).size())
                     padded_batch_env_features[i, j, k] = torch.tensor(box_features)
@@ -132,7 +136,6 @@ class VideoDataSet(Dataset):
         '''
         agent_features_dict = load_json(os.path.join(self.agent_feature_dir, video_name + '.json'))
         agent_timestamps = sorted(agent_features_dict.keys(), key=lambda x: float(x))
-        # agent_features = nn.utils.rnn.pad_sequence([agent_features_dict[t] for t in agent_timestamps], batch_first=True)
         agent_features = [agent_features_dict[t] for t in agent_timestamps]
 
         assert env_timestamps == agent_timestamps, 'Two streams must have same paces.'
