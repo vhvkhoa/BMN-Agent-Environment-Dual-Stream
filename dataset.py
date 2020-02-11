@@ -34,12 +34,12 @@ def train_collate_fn(batch):
         torch.tensor([len(t_feature) for t_feature in agent_features])
         for agent_features in batch_agent_features], batch_first=True
     )
-    max_box_dim = torch.max(batch_agent_box_lengths)
+    max_box_dim = torch.max(batch_agent_box_lengths).item()
     batch_agent_features_padding_mask = torch.arange(max_box_dim)[None, None, :] < batch_agent_box_lengths[:, :, None]
-    print(max_box_dim)
+    print(batch_agent_features_padding_mask)
 
     # Declare important dimensions
-    batch_size = batch_env_features
+    batch_size = len(batch_env_features)
     max_temporal_dim = max([len(env_features) for env_features in batch_env_features])
     feature_dim = len(batch_env_features[0][0])
     
