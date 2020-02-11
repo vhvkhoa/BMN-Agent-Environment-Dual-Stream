@@ -6,7 +6,10 @@ import numpy as np
 
 import torch
 from torch import nn
+from torch.nn.utils.rnn import pad_sequence
+import torch.nn.functional as F
 from torch.utils.data.dataset import Dataset
+
 from utils import ioa_with_anchors, iou_with_anchors
 
 from config.defaults import get_cfg
@@ -38,20 +41,16 @@ def train_collate_fn(batch):
     batch_agent_features_padding_mask = torch.arange(max_box_dim)[None, None, :] < batch_agent_box_lengths[:, :, None]
     print(batch_agent_features_padding_mask)
 
-    # Declare important dimensions
-    batch_size = len(batch_env_features)
-    max_temporal_dim = max([len(env_features) for env_features in batch_env_features])
-    feature_dim = len(batch_env_features[0][0])
-    
     # Pad environment features at temporal dimension
-    padded_batch_env_features = torch.nn.utils.rnn.pad_sequence(batch_env_features, batch_first=True)
+    padded_batch_env_features = pad_sequence(batch_env_features, batch_first=True)
+    print(padded_batch_env_features)
     
     # Pad agent features at temporal and box dimension
-    padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
     for i, agent_features in enumerate(batch_agent_features):
-        for j, temporal_features in enumerate(agent_features):
-            for k, box_features in enumerate(temporal_features):
-                padded_batch_agent_features[i][j][k] = box_features
+        agent_features = pad_sequence(agent_features, batch_first=True)
+        batch_agent_features[i] = F.pad(agent_features, [0, 0, 0, max_box_dim - agent_features.size(1)])
+    padded_batch_agent_features = pad_sequence(batch_agent_features, batch_first=True)
+    print(padded_batch_agent_features)
     
     return padded_batch_env_features, padded_batch_agent_features, confidence_labels, start_labels, end_labels
 
