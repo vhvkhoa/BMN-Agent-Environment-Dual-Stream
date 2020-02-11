@@ -44,6 +44,7 @@ def train_collate_fn(batch):
     
     # Pad environment features at temporal dimension
     padded_batch_env_features = torch.nn.utils.rnn.pad_sequence(batch_env_features, batch_first=True)
+    print(padded_batch_env_features.size())
     
     # Pad agent features at temporal and box dimension
     padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
@@ -119,9 +120,7 @@ class VideoDataSet(Dataset):
         '''
         env_features_dict = load_json(os.path.join(self.env_feature_dir, video_name + '.json'))
         env_timestamps = sorted(env_features_dict.keys(), key=lambda x: float(x))
-        env_features = torch.tensor([env_features_dict[t] for t in env_timestamps]).squeeze(1)
-        env_features = torch.transpose(env_features, 0, 1).float()
-        print(env_features.size())
+        env_features = torch.tensor([env_features_dict[t] for t in env_timestamps]).float().squeeze(1)
 
         '''
         Read agents features at every timestamp
