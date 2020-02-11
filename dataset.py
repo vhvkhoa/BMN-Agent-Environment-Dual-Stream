@@ -50,6 +50,7 @@ def train_collate_fn(batch):
         for j, temporal_features in enumerate(agent_features):
             for k, box_features in enumerate(temporal_features):
                 if len(box_features) > 0:
+                    print(torch.tensor(box_features).size())
                     padded_batch_env_features[i, j, k] = torch.tensor(box_features)
     print(padded_batch_agent_features)
     
