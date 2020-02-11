@@ -46,16 +46,14 @@ def train_collate_fn(batch):
     # Pad agent features at temporal and box dimension
     batch_size, max_temporal_dim, feature_dim = padded_batch_env_features.size()
     padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
+
     print(len(batch_agent_features))
-    for i, agent_features in enumerate(batch_agent_features):
-        print(len(agent_features))
-        for j, temporal_features in enumerate(agent_features):
-            print(len(temporal_features))
-            for k, box_features in enumerate(temporal_features):
-                print(len(box_features))
-                if len(box_features) > 0:
-                    print(torch.tensor(box_features).size())
-                    padded_batch_env_features[i, j, k] = torch.tensor(box_features)
+    for i, temporal_features in enumerate(batch_agent_features):
+        print(len(temporal_features))
+        for j, box_features in enumerate(temporal_features):
+            print(len(box_features))
+            if len(box_features) > 0:
+                padded_batch_env_features[i, j] = torch.tensor(box_features)
     print(padded_batch_agent_features)
     
     return padded_batch_env_features, padded_batch_agent_features, confidence_labels, start_labels, end_labels
@@ -136,7 +134,6 @@ class VideoDataSet(Dataset):
         '''
         agent_features_dict = load_json(os.path.join(self.agent_feature_dir, video_name + '.json'))
         agent_timestamps = sorted(agent_features_dict.keys(), key=lambda x: float(x))
-        print(video_name, len(agent_timestamps))
         agent_features = [agent_features_dict[t] for t in agent_timestamps]
 
         assert env_timestamps == agent_timestamps, 'Two streams must have same paces.'
