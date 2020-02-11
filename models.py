@@ -286,7 +286,7 @@ if __name__ == '__main__':
     import opts
     opt = opts.parse_opt()
     opt = vars(opt)
-    model = EventDetectionNetwork(opt)
+    model = EventDetection(opt)
     input = torch.randn(2, 400, 100)
     a, b, c = model(input)
     print(a.shape, b.shape, c.shape)
