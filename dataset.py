@@ -9,6 +9,8 @@ from torch import nn
 from torch.utils.data.dataset import Dataset
 from utils import ioa_with_anchors, iou_with_anchors
 
+from defaults import get_cfg
+
 
 def load_json(file):
     with open(file) as json_file:
@@ -58,14 +60,15 @@ def test_collate_fn(batch):
 
 
 class VideoDataSet(Dataset):
-    def __init__(self, opt, split="train"):
-        self.temporal_scale = opt["temporal_scale"]  # 100
+    def __init__(self, cfg, split="train"):
+        self.temporal_scale = cfg.DATA.TEMPORAL_SCALE  # 100
         self.temporal_gap = 1. / self.temporal_scale
         self.split = split
-        self.env_feature_dir = opt["env_feature_dir"]
-        self.agent_feature_dir = opt["agent_feature_dir"]
-        self.video_id_path = opt["video_id_path"]
-        self.video_anno_path = opt["video_anno_path"]
+        self.env_feature_dir = cfg.DATA.ENV_FEATURE_DIR
+        self.agent_feature_dir = cfg.DATA.AGENT_FEATURE_DIR
+        self.video_id_path = cfg.DATA.VIDEO_ID_FILE
+        self.video_anno_path = cfg.DATA.VIDEO_ANNOTATION_FILE
+
         self._getDatasetDict()
         self._get_match_map()
 
@@ -191,11 +194,9 @@ class VideoDataSet(Dataset):
 
 
 if __name__ == '__main__':
-    import opts
-    opt = opts.parse_opt()
-    opt = vars(opt)
-    train_loader = torch.utils.data.DataLoader(VideoDataSet(opt, split="train"),
-                                               batch_size=opt["batch_size"], shuffle=True,
+    cfg = get_cfg()
+    train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="train"),
+                                               batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                                num_workers=8, pin_memory=True, collate_fn=train_collate_fn)
     for a, b, c, d in train_loader:
         print(a.shape, b.shape, c.shape, d.shape)
