@@ -28,9 +28,9 @@ def train_collate_fn(batch):
     len_sorted_ids = sorted(range(len(batch_env_features)), key=lambda i: len(batch_env_features[i]))
     batch_env_features = [batch_env_features[i] for i in len_sorted_ids]
     batch_agent_features = [batch_agent_features[i] for i in len_sorted_ids]
-    confidence_labels = [confidence_labels[i] for i in len_sorted_ids]
-    start_labels = [start_labels[i] for i in len_sorted_ids]
-    end_labels = [end_labels[i] for i in len_sorted_ids]
+    confidence_labels = torch.tensor([confidence_labels[i] for i in len_sorted_ids])
+    start_labels = torch.tensor([start_labels[i] for i in len_sorted_ids])
+    end_labels = torch.tensor([end_labels[i] for i in len_sorted_ids])
 
     # Create agent feature padding mask
     batch_agent_box_lengths = torch.nn.utils.rnn.pad_sequence([
@@ -51,7 +51,6 @@ def train_collate_fn(batch):
         for j, box_features in enumerate(temporal_features):
             if len(box_features) > 0:
                 padded_batch_agent_features[i, j, :len(box_features)] = torch.tensor(box_features)
-    print(padded_batch_agent_features)
     
     return padded_batch_env_features, padded_batch_agent_features, confidence_labels, start_labels, end_labels
 
@@ -198,6 +197,6 @@ if __name__ == '__main__':
     train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="train"),
                                                batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                                num_workers=8, pin_memory=True, collate_fn=train_collate_fn)
-    for a, b, c, d in train_loader:
-        print(a.shape, b.shape, c.shape, d.shape)
+    for a, b, c, d, e in train_loader:
+        print(a.size(), b.size(), c.size(), d.size(), e.size())
         break
