@@ -136,7 +136,7 @@ class VideoDataSet(Dataset):
         '''
         agent_features_dict = load_json(os.path.join(self.agent_feature_dir, video_name + '.json'))
         agent_timestamps = sorted(agent_features_dict.keys(), key=lambda x: float(x))
-        print(len(agent_timestamps))
+        print(video_name, len(agent_timestamps))
         agent_features = [agent_features_dict[t] for t in agent_timestamps]
 
         assert env_timestamps == agent_timestamps, 'Two streams must have same paces.'
