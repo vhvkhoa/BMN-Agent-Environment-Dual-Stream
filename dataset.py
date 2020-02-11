@@ -30,7 +30,7 @@ def train_collate_fn(batch):
     end_labels = [end_labels[i] for i in len_sorted_ids]
 
     # Create agent feature padding mask
-    batch_agent_box_lengths = [[len(t_feature) for t_feature in agent_features] for agent_features in batch_agent_features]
+    batch_agent_box_lengths = torch.tensor([[len(t_feature) for t_feature in agent_features] for agent_features in batch_agent_features])
     max_box_dim = torch.max(batch_agent_box_lengths)
     batch_agent_features_padding_mask = torch.arange(max_box_dim)[None, None, :] < batch_agent_box_lengths[:, :, None]
 
