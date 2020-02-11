@@ -45,7 +45,7 @@ def train_collate_fn(batch):
     
     # Pad agent features at temporal and box dimension
     batch_size, max_temporal_dim, feature_dim = padded_batch_env_features.size()
-    padded_batch_agent_features = torch.zeros(batch_size, temporal_dim, max_box_dim, feature_dim)
+    padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
     for i, agent_features in enumerate(batch_agent_features):
         for j, temporal_features in enumerate(agent_features):
             for k, box_features in enumerate(temporal_features):
