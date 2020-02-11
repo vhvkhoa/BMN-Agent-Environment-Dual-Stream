@@ -5,9 +5,7 @@ import json
 import numpy as np
 
 import torch
-from torch import nn
 from torch.nn.utils.rnn import pad_sequence
-import torch.nn.functional as F
 from torch.utils.data.dataset import Dataset
 
 from utils import ioa_with_anchors, iou_with_anchors
@@ -42,7 +40,7 @@ def train_collate_fn(batch):
 
     # Pad environment features at temporal dimension
     padded_batch_env_features = pad_sequence(batch_env_features, batch_first=True)
-    
+
     # Pad agent features at temporal and box dimension
     batch_size, max_temporal_dim, feature_dim = padded_batch_env_features.size()
     padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
@@ -51,8 +49,8 @@ def train_collate_fn(batch):
         for j, box_features in enumerate(temporal_features):
             if len(box_features) > 0:
                 padded_batch_agent_features[i, j, :len(box_features)] = torch.tensor(box_features)
-    
-    return padded_batch_env_features, padded_batch_agent_features, confidence_labels, start_labels, end_labels
+
+    return padded_batch_env_features, padded_batch_agent_features, batch_agent_features_padding_mask, confidence_labels, start_labels, end_labels
 
 
 def test_collate_fn(batch):
@@ -70,11 +68,10 @@ class VideoDataSet(Dataset):
         self.video_anno_path = cfg.DATA.VIDEO_ANNOTATION_FILE
 
         self._getDatasetDict()
-        self._get_match_map()
 
     def _getDatasetDict(self):
         self.video_names = load_json(self.video_id_path)
-        annotations = load_json(self.video_anno_path) 
+        annotations = load_json(self.video_anno_path)
         # Read event segments
         self.event_dict = {}
         for video_name in self.video_names:
@@ -86,27 +83,29 @@ class VideoDataSet(Dataset):
     def __getitem__(self, index):
         env_timestamps, env_features, agent_features = self._load_item(index)
         if self.split == "train":
-            match_score_start, match_score_end, confidence_score = self._get_train_label(index, self.anchor_xmin,
-                                                                                         self.anchor_xmax)
+            match_score_start, match_score_end, confidence_score = self._get_train_label(index)
+            print(confidence_score.size(), match_score_start.size(), match_score_end.size())
             return env_features, agent_features, confidence_score, match_score_start, match_score_end
         else:
             return index, env_features, agent_features
 
-    def _get_match_map(self):
+    def _get_match_map(self, temporal_scale):
         match_map = []
-        for idx in range(self.temporal_scale):
+        for idx in range(temporal_scale):
             tmp_match_window = []
             xmin = self.temporal_gap * idx
-            for jdx in range(1, self.temporal_scale + 1):
+            for jdx in range(1, temporal_scale + 1):
                 xmax = xmin + self.temporal_gap * jdx
                 tmp_match_window.append([xmin, xmax])
             match_map.append(tmp_match_window)
         match_map = np.array(match_map)  # 100x100x2
         match_map = np.transpose(match_map, [1, 0, 2])  # [0,1] [1,2] [2,3].....[99,100]
         match_map = np.reshape(match_map, [-1, 2])  # [0,2] [1,3] [2,4].....[99,101]   # duration x start
-        self.match_map = match_map  # duration is same in row, start is same in col
-        self.anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(self.temporal_scale)]
-        self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_scale + 1)]
+
+        anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(temporal_scale)]
+        anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, temporal_scale + 1)]
+
+        return match_map, anchor_xmin, anchor_xmax
 
     def _load_item(self, index):
         video_name = self.video_names[index]
@@ -136,11 +135,13 @@ class VideoDataSet(Dataset):
 
         return env_timestamps, env_features, agent_features
 
-    def _get_train_label(self, index, anchor_xmin, anchor_xmax):
+    def _get_train_label(self, index):
         video_name = self.video_names[index]
         video_info = self.event_dict[video_name]
         duration = video_info['duration']
         video_labels = video_info['events']  # the measurement is second, not frame
+
+        match_map, anchor_xmin, anchor_xmax = self._get_match_map(duration)
 
         ##############################################################################################
         # change the measurement from second to percentage
@@ -152,7 +153,7 @@ class VideoDataSet(Dataset):
             tmp_end = max(min(1, tmp_info[1] / duration), 0)
             gt_bbox.append([tmp_start, tmp_end])
             tmp_gt_iou_map = iou_with_anchors(
-                self.match_map[:, 0], self.match_map[:, 1], tmp_start, tmp_end)
+                match_map[:, 0], match_map[:, 1], tmp_start, tmp_end)
             tmp_gt_iou_map = np.reshape(tmp_gt_iou_map,
                                         [self.temporal_scale, self.temporal_scale])
             gt_iou_map.append(tmp_gt_iou_map)
