@@ -39,7 +39,7 @@ def train_collate_fn(batch):
     )
     max_box_dim = torch.max(batch_agent_box_lengths).item()
     batch_agent_features_padding_mask = torch.arange(max_box_dim)[None, None, :] < batch_agent_box_lengths[:, :, None]
-    print(batch_agent_features_padding_mask)
+    # print(batch_agent_features_padding_mask)
 
     # Pad environment features at temporal dimension
     padded_batch_env_features = pad_sequence(batch_env_features, batch_first=True)
@@ -47,7 +47,7 @@ def train_collate_fn(batch):
     
     # Pad agent features at temporal and box dimension
     for i, agent_features in enumerate(batch_agent_features):
-        agent_features = pad_sequence(agent_features, batch_first=True)
+        agent_features = pad_sequence(torch.tensor(agent_features), batch_first=True)
         batch_agent_features[i] = F.pad(agent_features, [0, 0, 0, max_box_dim - agent_features.size(1)])
     padded_batch_agent_features = pad_sequence(batch_agent_features, batch_first=True)
     print(padded_batch_agent_features.size())
