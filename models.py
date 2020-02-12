@@ -223,21 +223,22 @@ class BoundaryMatchingNetwork(nn.Module):
         temporal_dim = x.size(1)
         sample_mask = self._get_interp1d_mask(temporal_dim)
 
+        print(x.size())
         base_feature = self.x_1d_b(x)
         start = self.x_1d_s(base_feature).squeeze(1)
         end = self.x_1d_e(base_feature).squeeze(1)
         confidence_map = self.x_1d_p(base_feature)
-        confidence_map = self._boundary_matching_layer(confidence_map, sample_mask)
+        confidence_map = self._boundary_matching_layer(confidence_map, sample_mask, temporal_dim)
         confidence_map = self.x_3d_p(confidence_map).squeeze(2)
         confidence_map = self.x_2d_p(confidence_map)
         return confidence_map, start, end
 
-    def _boundary_matching_layer(self, x, sample_mask):
+    def _boundary_matching_layer(self, x, sample_mask, temporal_dim):
         input_size = x.size()
-        out = torch.matmul(x, sample_mask).reshape(input_size[0], input_size[1], self.num_sample, self.tscale, self.tscale)
+        out = torch.matmul(x, sample_mask).reshape(input_size[0], input_size[1], self.num_sample, temporal_dim, temporal_dim)
         return out
 
-    def _get_interp1d_bin_mask(self, seg_xmin, seg_xmax, tscale, num_sample, num_sample_perbin):
+    def _get_interp1d_bin_mask(self, seg_xmin, seg_xmax, temporal_dim, num_sample, num_sample_perbin):
         # generate sample mask for a boundary-matching pair
         plen = float(seg_xmax - seg_xmin)
         plen_sample = plen / (num_sample * num_sample_perbin - 1.0)
@@ -249,13 +250,13 @@ class BoundaryMatchingNetwork(nn.Module):
         p_mask = []
         for idx in range(num_sample):
             bin_samples = total_samples[idx * num_sample_perbin:(idx + 1) * num_sample_perbin]
-            bin_vector = np.zeros([tscale])
+            bin_vector = np.zeros([temporal_dim])
             for sample in bin_samples:
                 sample_upper = math.ceil(sample)
                 sample_decimal, sample_down = math.modf(sample)
-                if int(sample_down) <= (tscale - 1) and int(sample_down) >= 0:
+                if int(sample_down) <= (temporal_dim - 1) and int(sample_down) >= 0:
                     bin_vector[int(sample_down)] += 1 - sample_decimal
-                if int(sample_upper) <= (tscale - 1) and int(sample_upper) >= 0:
+                if int(sample_upper) <= (temporal_dim - 1) and int(sample_upper) >= 0:
                     bin_vector[int(sample_upper)] += sample_decimal
             bin_vector = 1.0 / num_sample_perbin * bin_vector
             p_mask.append(bin_vector)
