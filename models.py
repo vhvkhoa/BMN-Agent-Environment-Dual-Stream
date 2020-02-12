@@ -113,8 +113,6 @@ class TransformerEncoderLayer(nn.Module):
         Shape:
             see the docs in Transformer class.
         """
-        print(key_padding_mask.size())
-        print(src.size())
         src2 = self.self_attn(src, src, src, attn_mask=src_mask,
                               key_padding_mask=key_padding_mask)[0]
         src = src + self.dropout1(src2)
@@ -310,7 +308,7 @@ if __name__ == '__main__':
     model = EventDetection(cfg)
 
     batch_size = 1
-    temporal_dim = 3
+    temporal_dim = 10
     box_dim = 4
     feature_dim = 2304
 
