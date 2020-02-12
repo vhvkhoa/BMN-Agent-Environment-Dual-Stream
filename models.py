@@ -266,6 +266,7 @@ class BoundaryMatchingNetwork(nn.Module):
                     bin_vector[int(sample_upper)] += sample_decimal
             bin_vector = 1.0 / num_sample_perbin * bin_vector
             p_mask.append(bin_vector)
+        print(p_mask)
         p_mask = np.stack(p_mask, axis=1)
         return p_mask
 
@@ -298,8 +299,6 @@ class BoundaryMatchingNetwork(nn.Module):
 
         mask_mat = np.stack(mask_mat, axis=3)
         mask_mat = mask_mat.astype(np.float32)
-        print(mask_mat.shape)
-        print(mask_mat)
 
         sample_mask = nn.Parameter(torch.Tensor(mask_mat).view(temporal_dim, -1), requires_grad=False)
         return sample_mask
