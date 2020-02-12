@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from config.defaults import get_cfg
 
 
 def _get_clones(module, N):
@@ -35,7 +36,7 @@ class TransformerEncoder(nn.Module):
         >>> out = transformer_encoder(src)
     """
 
-    def __init__(self, num_features, num_heads=8, dim_feedforward=2048, drop_out=0.1, activation='relu', num_layers=4, norm=None):
+    def __init__(self, num_features, num_heads=6, dim_feedforward=2048, drop_out=0.1, activation='relu', num_layers=4, norm=None):
         super(TransformerEncoder, self).__init__()
         encoder_layer = TransformerEncoderLayer(num_features, num_heads, dim_feedforward, drop_out, activation)
         self.layers = _get_clones(encoder_layer, num_layers)
@@ -126,13 +127,13 @@ class TransformerEncoderLayer(nn.Module):
 
 
 class EventDetection(nn.Module):
-    def __init__(self, opt):
-        self.agents_fuser = TransformerEncoder(opt['num_features'])
-        self.agents_environment_fuser = TransformerEncoder(opt['num_features'])
-        self.event_detector = BoundaryMatchingNetwork(opt)
+    def __init__(self, cfg):
+        self.agents_fuser = TransformerEncoder(cfg.MODEL.FEATURE_DIM)
+        self.agents_environment_fuser = TransformerEncoder(cfg.MODEL.FEATURE_DIM)
+        self.event_detector = BoundaryMatchingNetwork(cfg)
 
-        self.agents_fuser_batch_size = opt["attention_batch_size"]
-        self.agents_environment_fuser_batch_size = opt["attention_batch_size"]
+        self.agents_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
+        self.agents_environment_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
 
     def forward(self, env_features, agent_features, agent_padding_mask):
         temporal_size, batch_size, num_boxes, feature_size = agent_features.size()
@@ -163,13 +164,13 @@ class EventDetection(nn.Module):
 
 
 class BoundaryMatchingNetwork(nn.Module):
-    def __init__(self, opt):
+    def __init__(self, cfg):
         super(BoundaryMatchingNetwork, self).__init__()
-        self.tscale = opt["temporal_scale"]
-        self.prop_boundary_ratio = opt["prop_boundary_ratio"]
-        self.num_sample = opt["num_sample"]
-        self.num_sample_perbin = opt["num_sample_perbin"]
-        self.feat_dim = opt["feat_dim"]
+        self.tscale = cfg.DATA.TEMPORAL_SCALE
+        self.prop_boundary_ratio = cfg.BMN.PROP_BOUNDARY_RATIO
+        self.num_sample = cfg.BMN.NUM_SAMPLES
+        self.num_sample_perbin = cfg.BMN.NUM_SAMPLES_PER_BIN
+        self.feat_dim = cfg.MODEL.FEATURE_DIM
 
         self.hidden_dim_1d = 256
         self.hidden_dim_2d = 128
@@ -286,10 +287,8 @@ class BoundaryMatchingNetwork(nn.Module):
 
 
 if __name__ == '__main__':
-    import opts
-    opt = opts.parse_opt()
-    opt = vars(opt)
-    model = EventDetection(opt)
+    cfg = get_cfg()
+    model = EventDetection(cfg)
     input = torch.randn(2, 400, 100)
     a, b, c = model(input)
     print(a.shape, b.shape, c.shape)
