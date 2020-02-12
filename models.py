@@ -278,13 +278,13 @@ class BoundaryMatchingNetwork(nn.Module):
             mask_mat_vector = []
 
             for duration_index in range(temporal_dim):
+                print(start_index, start_index + duration_index)
                 if start_index + duration_index < temporal_dim:
                     p_xmin = start_index
                     p_xmax = start_index + duration_index
                     center_len = float(p_xmax - p_xmin) + 1
                     sample_xmin = p_xmin - center_len * self.prop_boundary_ratio
                     sample_xmax = p_xmax + center_len * self.prop_boundary_ratio
-                    print(sample_xmin, sample_xmax)
 
                     p_mask = self._get_interp1d_bin_mask(
                         sample_xmin, sample_xmax, temporal_dim, self.num_sample,
