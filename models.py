@@ -291,7 +291,7 @@ class BoundaryMatchingNetwork(nn.Module):
 
         mask_mat = np.stack(mask_mat, axis=3)
         mask_mat = mask_mat.astype(np.float32)
-        return nn.Parameter(torch.Tensor(mask_mat).view(self.tscale, -1), requires_grad=False)
+        return nn.Parameter(torch.Tensor(mask_mat).view(temporal_dim, -1), requires_grad=False)
 
 
 if __name__ == '__main__':
