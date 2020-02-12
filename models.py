@@ -113,6 +113,8 @@ class TransformerEncoderLayer(nn.Module):
         Shape:
             see the docs in Transformer class.
         """
+        print(key_padding_mask.size())
+        print(src.size())
         src2 = self.self_attn(src, src, src, attn_mask=src_mask,
                               key_padding_mask=key_padding_mask)[0]
         src = src + self.dropout1(src2)
