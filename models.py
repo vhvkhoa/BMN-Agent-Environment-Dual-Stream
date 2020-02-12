@@ -145,7 +145,7 @@ class EventDetection(nn.Module):
         for sample_begin in range(0, agent_features.size(1), self.agents_fuser_batch_size // batch_size):
             sample_end = min(agent_features.size(1), sample_begin + self.agents_fuser_batch_size // batch_size)
 
-            fuser_input = agent_features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size)
+            fuser_input = agent_features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
             attention_padding_mask = agent_padding_mask[:, sample_begin: sample_end].view(-1, num_boxes)
 
             fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask)
@@ -157,7 +157,7 @@ class EventDetection(nn.Module):
         for sample_begin in range(0, agent_features.size(1), self.agents_environment_fuser_batch_size // batch_size):
             sample_end = min(agent_features.size(1), sample_begin + self.agents_environment_fuser_batch_size // batch_size)
 
-            fuser_input = agent_environment_features[:, sample_begin: sample_end].view(-1, 2, feature_size)
+            fuser_input = agent_environment_features[:, sample_begin: sample_end].view(-1, 2, feature_size).permute(1, 0, 2)
             fuser_output = self.agents_environment_fuser(fuser_input)
             fused_context_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
 
