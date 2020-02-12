@@ -168,7 +168,6 @@ class EventDetection(nn.Module):
 class BoundaryMatchingNetwork(nn.Module):
     def __init__(self, cfg):
         super(BoundaryMatchingNetwork, self).__init__()
-        self.tscale = cfg.DATA.TEMPORAL_SCALE
         self.prop_boundary_ratio = cfg.BMN.PROP_BOUNDARY_RATIO
         self.num_sample = cfg.BMN.NUM_SAMPLES
         self.num_sample_perbin = cfg.BMN.NUM_SAMPLES_PER_BIN
@@ -223,18 +222,21 @@ class BoundaryMatchingNetwork(nn.Module):
         )
 
     def forward(self, x):
+        temporal_dim = x.size(1)
+        sample_mask = self._get_interp1d_mask(temporal_dim)
+
         base_feature = self.x_1d_b(x)
         start = self.x_1d_s(base_feature).squeeze(1)
         end = self.x_1d_e(base_feature).squeeze(1)
         confidence_map = self.x_1d_p(base_feature)
-        confidence_map = self._boundary_matching_layer(confidence_map)
+        confidence_map = self._boundary_matching_layer(confidence_map, sample_mask)
         confidence_map = self.x_3d_p(confidence_map).squeeze(2)
         confidence_map = self.x_2d_p(confidence_map)
         return confidence_map, start, end
 
-    def _boundary_matching_layer(self, x):
+    def _boundary_matching_layer(self, x, sample_mask):
         input_size = x.size()
-        out = torch.matmul(x, self.sample_mask).reshape(input_size[0], input_size[1], self.num_sample, self.tscale, self.tscale)
+        out = torch.matmul(x, sample_mask).reshape(input_size[0], input_size[1], self.num_sample, self.tscale, self.tscale)
         return out
 
     def _get_interp1d_bin_mask(self, seg_xmin, seg_xmax, tscale, num_sample, num_sample_perbin):
@@ -245,6 +247,7 @@ class BoundaryMatchingNetwork(nn.Module):
             seg_xmin + plen_sample * ii
             for ii in range(num_sample * num_sample_perbin)
         ]
+
         p_mask = []
         for idx in range(num_sample):
             bin_samples = total_samples[idx * num_sample_perbin:(idx + 1) * num_sample_perbin]
@@ -259,33 +262,38 @@ class BoundaryMatchingNetwork(nn.Module):
             bin_vector = 1.0 / num_sample_perbin * bin_vector
             p_mask.append(bin_vector)
         p_mask = np.stack(p_mask, axis=1)
-        print(p_mask.shape)
         return p_mask
 
-    def _get_interp1d_mask(self):
+    def _get_interp1d_mask(self, temporal_dim):
         # generate sample mask for each point in Boundary-Matching Map
         mask_mat = []
-        for start_index in range(self.tscale):
+
+        for start_index in range(temporal_dim):
             mask_mat_vector = []
-            for duration_index in range(self.tscale):
-                if start_index + duration_index < self.tscale:
+
+            for duration_index in range(temporal_dim):
+                if start_index + duration_index < temporal_dim:
                     p_xmin = start_index
                     p_xmax = start_index + duration_index
                     center_len = float(p_xmax - p_xmin) + 1
                     sample_xmin = p_xmin - center_len * self.prop_boundary_ratio
                     sample_xmax = p_xmax + center_len * self.prop_boundary_ratio
+
                     p_mask = self._get_interp1d_bin_mask(
-                        sample_xmin, sample_xmax, self.tscale, self.num_sample,
+                        sample_xmin, sample_xmax, temporal_dim, self.num_sample,
                         self.num_sample_perbin)
+
                 else:
-                    p_mask = np.zeros([self.tscale, self.num_sample])
+                    p_mask = np.zeros([temporal_dim, self.num_sample])
+
                 mask_mat_vector.append(p_mask)
+
             mask_mat_vector = np.stack(mask_mat_vector, axis=2)
             mask_mat.append(mask_mat_vector)
+
         mask_mat = np.stack(mask_mat, axis=3)
-        print(mask_mat.shape)
         mask_mat = mask_mat.astype(np.float32)
-        self.sample_mask = nn.Parameter(torch.Tensor(mask_mat).view(self.tscale, -1), requires_grad=False)
+        return nn.Parameter(torch.Tensor(mask_mat).view(self.tscale, -1), requires_grad=False)
 
 
 if __name__ == '__main__':

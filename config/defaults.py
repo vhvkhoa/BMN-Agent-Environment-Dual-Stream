@@ -4,7 +4,7 @@ from fvcore.common.config import CfgNode
 _C = CfgNode()
 
 _C.TRAIN = CfgNode()
-_C.TRAIN.BATCH_SIZE = 16
+_C.TRAIN.BATCH_SIZE = 1
 _C.TRAIN.ATTENTION_BATCH_SIZE = 128
 _C.TRAIN.LR = 0.001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ""
