@@ -148,8 +148,10 @@ class EventDetection(nn.Module):
 
             fuser_input = agent_features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
             attention_padding_mask = agent_padding_mask[:, sample_begin: sample_end].view(-1, num_boxes)
+            print(fuser_input.size(), attention_padding_mask.size())
 
             fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask)
+            print(fuser_output.size())
             fused_agent_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
 
         # Fuse agent context and environment context together at every temporal point
