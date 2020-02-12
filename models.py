@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from config.defaults import get_cfg
+from tqdm import tqdm
 
 
 def _get_clones(module, N):
@@ -221,10 +222,9 @@ class BoundaryMatchingNetwork(nn.Module):
         )
 
     def forward(self, x):
-        temporal_dim = x.size(1)
+        temporal_dim = x.size(-1)
         sample_mask = self._get_interp1d_mask(temporal_dim)
 
-        print(x.size())
         base_feature = self.x_1d_b(x)
         start = self.x_1d_s(base_feature).squeeze(1)
         end = self.x_1d_e(base_feature).squeeze(1)
@@ -268,10 +268,10 @@ class BoundaryMatchingNetwork(nn.Module):
         # generate sample mask for each point in Boundary-Matching Map
         import time
         start_time = time.time()
-    
+
         mask_mat = []
 
-        for start_index in range(temporal_dim):
+        for start_index in tqdm(range(temporal_dim)):
             mask_mat_vector = []
 
             for duration_index in range(temporal_dim):
