@@ -162,6 +162,7 @@ class EventDetection(nn.Module):
             fused_context_features[sample_begin: sample_end] = fuser_output.view(-1, 2, feature_size)
 
         # Event detection with context features
+        fused_context_features = fused_context_features.permute(0, 2, 1)
         return self.event_detector(fused_context_features)
 
 
