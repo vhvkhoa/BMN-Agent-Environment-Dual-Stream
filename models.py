@@ -128,6 +128,8 @@ class TransformerEncoderLayer(nn.Module):
 
 class EventDetection(nn.Module):
     def __init__(self, cfg):
+        super(EventDetection, self).__init__()
+
         self.agents_fuser = TransformerEncoder(cfg.MODEL.FEATURE_DIM)
         self.agents_environment_fuser = TransformerEncoder(cfg.MODEL.FEATURE_DIM)
         self.event_detector = BoundaryMatchingNetwork(cfg)
