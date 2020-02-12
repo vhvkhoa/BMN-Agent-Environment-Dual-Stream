@@ -229,16 +229,14 @@ class BoundaryMatchingNetwork(nn.Module):
         sample_mask = self._get_interp1d_mask(temporal_dim)
 
         base_feature = self.x_1d_b(x)
+
         start = self.x_1d_s(base_feature).squeeze(1)
         end = self.x_1d_e(base_feature).squeeze(1)
+
         confidence_map = self.x_1d_p(base_feature)
-        print(confidence_map.size())
         confidence_map = self._boundary_matching_layer(confidence_map, sample_mask, temporal_dim)
-        print(confidence_map.size())
         confidence_map = self.x_3d_p(confidence_map).squeeze(2)
-        print(confidence_map.size())
         confidence_map = self.x_2d_p(confidence_map)
-        print(confidence_map.size())
         return confidence_map, start, end
 
     def _boundary_matching_layer(self, x, sample_mask, temporal_dim):
@@ -312,7 +310,7 @@ if __name__ == '__main__':
     model = EventDetection(cfg)
 
     batch_size = 1
-    temporal_dim = 3
+    temporal_dim = 2
     box_dim = 4
     feature_dim = 2304
 
