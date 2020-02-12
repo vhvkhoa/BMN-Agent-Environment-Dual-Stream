@@ -230,8 +230,11 @@ class BoundaryMatchingNetwork(nn.Module):
         confidence_map = self.x_1d_p(base_feature)
         print(confidence_map.size())
         confidence_map = self._boundary_matching_layer(confidence_map, sample_mask, temporal_dim)
+        print(confidence_map.size())
         confidence_map = self.x_3d_p(confidence_map).squeeze(2)
+        print(confidence_map.size())
         confidence_map = self.x_2d_p(confidence_map)
+        print(confidence_map.size())
         return confidence_map, start, end
 
     def _boundary_matching_layer(self, x, sample_mask, temporal_dim):
@@ -305,8 +308,8 @@ class BoundaryMatchingNetwork(nn.Module):
 if __name__ == '__main__':
     cfg = get_cfg()
     model = EventDetection(cfg)
-    env_input = torch.randn(1, 150, 2304)
-    agent_input = torch.randn(1, 150, 4, 2304)
+    env_input = torch.randn(1, 3, 2304)
+    agent_input = torch.randn(1, 3, 4, 2304)
     agent_padding_mask = torch.tensor(np.random.randint(0, 1, (1, 150, 4))).bool()
     a, b, c = model(env_input, agent_input, agent_padding_mask)
     print(a.shape, b.shape, c.shape)
