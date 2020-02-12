@@ -138,7 +138,8 @@ class EventDetection(nn.Module):
         self.agents_environment_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
 
     def forward(self, env_features, agent_features, agent_padding_mask):
-        temporal_size, batch_size, num_boxes, feature_size = agent_features.size()
+        batch_size, temporal_size, num_boxes, feature_size = agent_features.size()
+        print(temporal_size, batch_size, num_boxes, feature_size)
 
         # Fuse all agents together at every temporal point
         fused_agent_features = torch.empty_like(env_features)
