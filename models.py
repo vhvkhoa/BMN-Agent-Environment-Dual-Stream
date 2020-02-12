@@ -113,7 +113,6 @@ class TransformerEncoderLayer(nn.Module):
         Shape:
             see the docs in Transformer class.
         """
-        print(src.size(), key_padding_mask.size())
         src2 = self.self_attn(src, src, src, attn_mask=src_mask,
                               key_padding_mask=key_padding_mask)[0]
         src = src + self.dropout1(src2)
@@ -145,15 +144,12 @@ class EventDetection(nn.Module):
         fused_agent_features = torch.empty_like(env_features)
         for sample_begin in range(0, agent_features.size(1), self.agents_fuser_batch_size // batch_size):
             sample_end = min(agent_features.size(1), sample_begin + self.agents_fuser_batch_size // batch_size)
-            print(sample_begin, sample_end, self.agents_fuser_batch_size // batch_size)
-            print(self.agents_fuser_batch_size, batch_size)
 
             fuser_input = agent_features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
             attention_padding_mask = agent_padding_mask[:, sample_begin: sample_end].view(-1, num_boxes)
-            print(fuser_input.size(), attention_padding_mask.size())
 
-            fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask)
-            print(fuser_output.size())
+            # *Temporally*, will fix later
+            fuser_output = torch.mean(self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask), dim=0)
             fused_agent_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
 
         # Fuse agent context and environment context together at every temporal point
@@ -163,7 +159,10 @@ class EventDetection(nn.Module):
             sample_end = min(agent_features.size(1), sample_begin + self.agents_environment_fuser_batch_size // batch_size)
 
             fuser_input = agent_environment_features[:, sample_begin: sample_end].view(-1, 2, feature_size).permute(1, 0, 2)
-            fuser_output = self.agents_environment_fuser(fuser_input)
+
+            # *Temporally*, will fix later
+            fuser_output = torch.mean(self.agents_environment_fuser(fuser_input), dim=0)
+
             fused_context_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
 
         # Event detection with context features
