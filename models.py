@@ -309,7 +309,7 @@ if __name__ == '__main__':
     model = EventDetection(cfg)
 
     batch_size = 1
-    temporal_dim = 4
+    temporal_dim = 3
     box_dim = 4
     feature_dim = 2304
 
