@@ -140,14 +140,13 @@ class EventDetection(nn.Module):
 
     def forward(self, env_features, agent_features, agent_padding_mask):
         batch_size, temporal_size, num_boxes, feature_size = agent_features.size()
-        print(agent_padding_mask.size(), agent_features.size())
 
         # Fuse all agents together at every temporal point
         fused_agent_features = torch.empty_like(env_features)
         for sample_begin in range(0, agent_features.size(1), self.agents_fuser_batch_size // batch_size):
             sample_end = min(agent_features.size(1), sample_begin + self.agents_fuser_batch_size // batch_size)
-            print(sample_begin, sample_end)
-            print(agent_features[:, sample_begin: sample_end].size())
+            print(sample_begin, sample_end, self.agents_environment_fuser_batch_size // batch_size)
+            print(self.agents_environment_fuser_batch_size, batch_size)
 
             fuser_input = agent_features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
             attention_padding_mask = agent_padding_mask[:, sample_begin: sample_end].view(-1, num_boxes)
@@ -318,8 +317,8 @@ if __name__ == '__main__':
     box_dim = 4
     feature_dim = 2304
 
-    env_input = torch.randn(temporal_dim, batch_size, feature_dim)
-    agent_input = torch.randn(temporal_dim, batch_size, box_dim, feature_dim)
+    env_input = torch.randn(batch_size, temporal_dim, feature_dim)
+    agent_input = torch.randn(batch_size, temporal_dim, box_dim, feature_dim)
     agent_padding_mask = torch.tensor(np.random.randint(0, 1, (batch_size, temporal_dim, box_dim))).bool()
 
     a, b, c = model(env_input, agent_input, agent_padding_mask)
