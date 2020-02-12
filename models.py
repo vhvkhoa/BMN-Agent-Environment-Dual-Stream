@@ -278,7 +278,7 @@ class BoundaryMatchingNetwork(nn.Module):
             mask_mat_vector = []
 
             for duration_index in range(temporal_dim):
-                print(start_index, start_index + duration_index)
+                print(start_index, start_index + duration_index, start_index + duration_index < temporal_dim)
                 if start_index + duration_index < temporal_dim:
                     p_xmin = start_index
                     p_xmax = start_index + duration_index
