@@ -142,24 +142,25 @@ class EventDetection(nn.Module):
         for sample_begin in range(agent_features.size(0), self.agents_fuser_batch_size // batch_size):
             sample_end = min(agent_features.size(0), sample_begin + self.agents_fuser_batch_size // batch_size)
 
-            fuser_input = agent_features[sample_begin : sample_end].view(-1, num_boxes, feature_size)
-            attention_padding_mask = agent_padding_mask[sample_begin : sample_end].view(-1, num_boxes)
+            fuser_input = agent_features[sample_begin: sample_end].view(-1, num_boxes, feature_size)
+            attention_padding_mask = agent_padding_mask[sample_begin: sample_end].view(-1, num_boxes)
 
-            fuser_output = self.agents_fuser(fuser_input, key_padding_mask=agent_padding_mask)
-            fused_agent_features[sample_begin : sample_end] = fuser_output.view(-1, batch_size, feature_size)
-        
+            fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask)
+            fused_agent_features[sample_begin: sample_end] = fuser_output.view(-1, batch_size, feature_size)
+
         # Fuse agent context and environment context together at every temporal point
         agent_environment_features = torch.cat([env_features, fused_agent_features], dim=1)
         fused_context_features = torch.empty_like(env_features)
         for sample_begin in range(agent_features.size(0), self.agents_environment_fuser_batch_size // batch_size):
             sample_end = min(agent_features.size(0), sample_begin + self.agents_environment_fuser_batch_size // batch_size)
 
-            fuser_input = agent_environment_features[sample_begin : sample_end].view(-1, 2, feature_size)
+            fuser_input = agent_environment_features[sample_begin: sample_end].view(-1, 2, feature_size)
             fuser_output = self.agents_environment_fuser(fuser_input)
-            fused_context_features[sample_begin : sample_end] = fuser_output.view(-1, 2, feature_size)
-        
+            fused_context_features[sample_begin: sample_end] = fuser_output.view(-1, 2, feature_size)
+
         # Event detection with context features
         return self.event_detector(fused_context_features)
+
 
 class BoundaryMatchingNetwork(nn.Module):
     def __init__(self, opt):
@@ -255,6 +256,7 @@ class BoundaryMatchingNetwork(nn.Module):
             bin_vector = 1.0 / num_sample_perbin * bin_vector
             p_mask.append(bin_vector)
         p_mask = np.stack(p_mask, axis=1)
+        print(p_mask.shape)
         return p_mask
 
     def _get_interp1d_mask(self):
@@ -278,6 +280,7 @@ class BoundaryMatchingNetwork(nn.Module):
             mask_mat_vector = np.stack(mask_mat_vector, axis=2)
             mask_mat.append(mask_mat_vector)
         mask_mat = np.stack(mask_mat, axis=3)
+        print(mask_mat.shape)
         mask_mat = mask_mat.astype(np.float32)
         self.sample_mask = nn.Parameter(torch.Tensor(mask_mat).view(self.tscale, -1), requires_grad=False)
 

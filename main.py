@@ -1,5 +1,5 @@
 import sys
-from dataset import VideoDataSet
+from dataset import VideoDataSet, train_collate_fn, test_collate_fn
 from loss_function import bmn_loss_func, get_mask
 import os
 import json
@@ -90,11 +90,11 @@ def BMN_Train(opt):
 
     train_loader = torch.utils.data.DataLoader(VideoDataSet(opt, split="train"),
                                                batch_size=opt["batch_size"], shuffle=True,
-                                               num_workers=8, pin_memory=True)
+                                               num_workers=8, pin_memory=True, collate_fn=train_collate_fn)
 
     test_loader = torch.utils.data.DataLoader(VideoDataSet(opt, split="validation"),
                                               batch_size=opt["batch_size"], shuffle=False,
-                                              num_workers=8, pin_memory=True)
+                                              num_workers=8, pin_memory=True, collate_fn=test_collate_fn)
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt["step_size"], gamma=opt["step_gamma"])
     bm_mask = get_mask(opt["temporal_scale"])
@@ -113,7 +113,7 @@ def BMN_inference(opt):
 
     test_loader = torch.utils.data.DataLoader(VideoDataSet(opt, split="validation"),
                                               batch_size=1, shuffle=False,
-                                              num_workers=8, pin_memory=True, drop_last=False)
+                                              num_workers=8, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
     tscale = opt["temporal_scale"]
     with torch.no_grad():
         for idx, input_data in test_loader:
