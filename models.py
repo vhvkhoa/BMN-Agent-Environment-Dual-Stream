@@ -266,6 +266,9 @@ class BoundaryMatchingNetwork(nn.Module):
 
     def _get_interp1d_mask(self, temporal_dim):
         # generate sample mask for each point in Boundary-Matching Map
+        import time
+        start_time = time.time()
+    
         mask_mat = []
 
         for start_index in range(temporal_dim):
@@ -293,7 +296,10 @@ class BoundaryMatchingNetwork(nn.Module):
 
         mask_mat = np.stack(mask_mat, axis=3)
         mask_mat = mask_mat.astype(np.float32)
-        return nn.Parameter(torch.Tensor(mask_mat).view(temporal_dim, -1), requires_grad=False)
+
+        sample_mask = nn.Parameter(torch.Tensor(mask_mat).view(temporal_dim, -1), requires_grad=False)
+        print('Time take to calculate sample_mask: ', time.time() - start_time)
+        return sample_mask
 
 
 if __name__ == '__main__':
