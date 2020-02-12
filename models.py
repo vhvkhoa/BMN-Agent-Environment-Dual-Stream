@@ -300,6 +300,7 @@ class BoundaryMatchingNetwork(nn.Module):
         mask_mat = np.stack(mask_mat, axis=3)
         mask_mat = mask_mat.astype(np.float32)
         print(mask_mat.shape)
+        print(mask_mat)
 
         sample_mask = nn.Parameter(torch.Tensor(mask_mat).view(temporal_dim, -1), requires_grad=False)
         return sample_mask
@@ -308,8 +309,15 @@ class BoundaryMatchingNetwork(nn.Module):
 if __name__ == '__main__':
     cfg = get_cfg()
     model = EventDetection(cfg)
-    env_input = torch.randn(1, 3, 2304)
-    agent_input = torch.randn(1, 3, 4, 2304)
-    agent_padding_mask = torch.tensor(np.random.randint(0, 1, (1, 150, 4))).bool()
+
+    batch_size = 1
+    temporal_dim = 3
+    box_dim = 4
+    feature_dim = 2304
+
+    env_input = torch.randn(batch_size, temporal_dim, feature_dim)
+    agent_input = torch.randn(batch_size, temporal_dim, box_dim, feature_dim)
+    agent_padding_mask = torch.tensor(np.random.randint(0, 1, (batch_size, temporal_dim, box_dim))).bool()
+
     a, b, c = model(env_input, agent_input, agent_padding_mask)
     print(a.shape, b.shape, c.shape)
