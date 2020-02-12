@@ -177,8 +177,6 @@ class BoundaryMatchingNetwork(nn.Module):
         self.hidden_dim_2d = 128
         self.hidden_dim_3d = 512
 
-        self._get_interp1d_mask()
-
         # Base Module
         self.x_1d_b = nn.Sequential(
             nn.Conv1d(self.feat_dim, self.hidden_dim_1d, kernel_size=3, padding=1, groups=4),
