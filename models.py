@@ -266,7 +266,7 @@ class BoundaryMatchingNetwork(nn.Module):
                     bin_vector[int(sample_upper)] += sample_decimal
             bin_vector = 1.0 / num_sample_perbin * bin_vector
             p_mask.append(bin_vector)
-        print(seg_xmin, seg_xmax, p_mask)
+
         p_mask = np.stack(p_mask, axis=1)
         return p_mask
 
@@ -284,6 +284,7 @@ class BoundaryMatchingNetwork(nn.Module):
                     center_len = float(p_xmax - p_xmin) + 1
                     sample_xmin = p_xmin - center_len * self.prop_boundary_ratio
                     sample_xmax = p_xmax + center_len * self.prop_boundary_ratio
+                    print(sample_xmin, sample_xmax)
 
                     p_mask = self._get_interp1d_bin_mask(
                         sample_xmin, sample_xmax, temporal_dim, self.num_sample,
