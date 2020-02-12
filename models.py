@@ -297,6 +297,6 @@ class BoundaryMatchingNetwork(nn.Module):
 if __name__ == '__main__':
     cfg = get_cfg()
     model = EventDetection(cfg)
-    input = torch.randn(2, 400, 100)
+    input = torch.randn(1, 2304, 100)
     a, b, c = model(input)
     print(a.shape, b.shape, c.shape)
