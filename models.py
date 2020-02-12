@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from config.defaults import get_cfg
-from tqdm import tqdm
 
 
 def _get_clones(module, N):
@@ -271,7 +270,7 @@ class BoundaryMatchingNetwork(nn.Module):
 
         mask_mat = []
 
-        for start_index in tqdm(range(temporal_dim)):
+        for start_index in range(temporal_dim):
             mask_mat_vector = []
 
             for duration_index in range(temporal_dim):
@@ -296,17 +295,17 @@ class BoundaryMatchingNetwork(nn.Module):
 
         mask_mat = np.stack(mask_mat, axis=3)
         mask_mat = mask_mat.astype(np.float32)
+        print(mask_mat.shape)
 
         sample_mask = nn.Parameter(torch.Tensor(mask_mat).view(temporal_dim, -1), requires_grad=False)
-        print('Time take to calculate sample_mask: ', time.time() - start_time)
         return sample_mask
 
 
 if __name__ == '__main__':
     cfg = get_cfg()
     model = EventDetection(cfg)
-    env_input = torch.randn(1, 1500, 2304)
-    agent_input = torch.randn(1, 1500, 4, 2304)
-    agent_padding_mask = torch.tensor(np.random.randint(0, 1, (1, 1500, 4))).bool()
+    env_input = torch.randn(1, 150, 2304)
+    agent_input = torch.randn(1, 150, 4, 2304)
+    agent_padding_mask = torch.tensor(np.random.randint(0, 1, (1, 150, 4))).bool()
     a, b, c = model(env_input, agent_input, agent_padding_mask)
     print(a.shape, b.shape, c.shape)
