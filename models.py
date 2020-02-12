@@ -228,6 +228,7 @@ class BoundaryMatchingNetwork(nn.Module):
         start = self.x_1d_s(base_feature).squeeze(1)
         end = self.x_1d_e(base_feature).squeeze(1)
         confidence_map = self.x_1d_p(base_feature)
+        print(confidence_map.size())
         confidence_map = self._boundary_matching_layer(confidence_map, sample_mask, temporal_dim)
         confidence_map = self.x_3d_p(confidence_map).squeeze(2)
         confidence_map = self.x_2d_p(confidence_map)
