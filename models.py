@@ -305,8 +305,8 @@ class BoundaryMatchingNetwork(nn.Module):
 if __name__ == '__main__':
     cfg = get_cfg()
     model = EventDetection(cfg)
-    env_input = torch.randn(1, 100, 2304)
-    agent_input = torch.randn(1, 100, 4, 2304)
-    agent_padding_mask = torch.tensor(np.random.randint(0, 1, (1, 100, 4))).bool()
+    env_input = torch.randn(1, 1500, 2304)
+    agent_input = torch.randn(1, 1500, 4, 2304)
+    agent_padding_mask = torch.tensor(np.random.randint(0, 1, (1, 1500, 4))).bool()
     a, b, c = model(env_input, agent_input, agent_padding_mask)
     print(a.shape, b.shape, c.shape)
