@@ -43,7 +43,7 @@ class TransformerEncoder(nn.Module):
         self.num_layers = num_layers
         self.norm = norm
 
-    def forward(self, src, mask=None, src_key_padding_mask=None):
+    def forward(self, src, mask=None, key_padding_mask=None):
         """Pass the input through the encoder layers in turn.
 
         Args:
@@ -58,7 +58,7 @@ class TransformerEncoder(nn.Module):
 
         for i in range(self.num_layers):
             output = self.layers[i](output, src_mask=mask,
-                                    src_key_padding_mask=src_key_padding_mask)
+                                    key_padding_mask=key_padding_mask)
 
         if self.norm:
             output = self.norm(output)
@@ -102,7 +102,7 @@ class TransformerEncoderLayer(nn.Module):
 
         self.activation = _get_activation_fn(activation)
 
-    def forward(self, src, src_mask=None, src_key_padding_mask=None):
+    def forward(self, src, src_mask=None, key_padding_mask=None):
         """Pass the input through the encoder layer.
 
         Args:
@@ -114,7 +114,7 @@ class TransformerEncoderLayer(nn.Module):
             see the docs in Transformer class.
         """
         src2 = self.self_attn(src, src, src, attn_mask=src_mask,
-                              key_padding_mask=src_key_padding_mask)[0]
+                              key_padding_mask=key_padding_mask)[0]
         src = src + self.dropout1(src2)
         src = self.norm1(src)
         if hasattr(self, "activation"):
@@ -269,9 +269,6 @@ class BoundaryMatchingNetwork(nn.Module):
 
     def _get_interp1d_mask(self, temporal_dim):
         # generate sample mask for each point in Boundary-Matching Map
-        import time
-        start_time = time.time()
-
         mask_mat = []
 
         for start_index in range(temporal_dim):
