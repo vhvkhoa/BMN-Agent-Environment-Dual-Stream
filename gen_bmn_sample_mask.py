@@ -2,6 +2,7 @@ import time
 import math
 import numpy as np
 import argparse
+from tqdm import tqdm
 
 from config.defaults import get_cfg
 
@@ -36,7 +37,7 @@ def get_interp1d_mask(cfg, temporal_dim):
     # generate sample mask for each point in Boundary-Matching Map
     mask_mat = []
 
-    for start_index in range(temporal_dim):
+    for start_index in tqdm(range(temporal_dim)):
         mask_mat_vector = []
 
         for duration_index in range(temporal_dim):
@@ -77,7 +78,6 @@ if __name__ == '__main__':
 
     print('Sample mask for %d temporal dimensions takes %f secs.' % (cfg.DATA.MAX_TEMPORAL_DIM, time.time() - start_time))
     np.save(cfg.DATA.SAMPLE_MASK_FILE, sample_mask)
-
 
     '''
     for tmp_scale in range(990, cfg.DATA.MAX_TEMPORAL_DIM):
