@@ -1,14 +1,17 @@
 import sys
-from dataset import VideoDataSet, train_collate_fn, test_collate_fn
-from loss_function import bmn_loss_func, get_mask
 import os
 import json
+
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn.parallel
 import torch.optim as optim
-import numpy as np
+
 import opts
 from models import EventDetection
+from dataset import VideoDataSet, train_collate_fn, test_collate_fn
+from loss_function import bmn_loss_func, get_mask
 from post_processing import BMN_post_processing
 from eval import evaluation_proposal
 
@@ -121,7 +124,7 @@ def BMN_inference(opt):
             input_data = input_data.cuda()
             confidence_map, start, end = model(input_data)
 
-            #print(start.shape,end.shape,confidence_map.shape)
+            # print(start.shape,end.shape,confidence_map.shape)
             start_scores = start[0].detach().cpu().numpy()
             end_scores = end[0].detach().cpu().numpy()
             clr_confidence = (confidence_map[0][1]).detach().cpu().numpy()
@@ -155,15 +158,15 @@ def BMN_inference(opt):
             for idx in range(tscale):
                 for jdx in range(tscale):
                     start_index = jdx
-                    end_index = start_index + idx+1
+                    end_index = start_index + idx + 1
                     if end_index < tscale and start_bins[start_index] == 1 and end_bins[end_index] == 1:
-                        xmin = start_index/tscale
-                        xmax = end_index/tscale
+                        xmin = start_index / tscale
+                        xmax = end_index / tscale
                         xmin_score = start_scores[start_index]
                         xmax_score = end_scores[end_index]
                         clr_score = clr_confidence[idx, jdx]
                         reg_score = reg_confidence[idx, jdx]
-                        score = xmin_score * xmax_score * clr_score*reg_score
+                        score = xmin_score * xmax_score * clr_score * reg_score
                         new_props.append([xmin, xmax, xmin_score, xmax_score, clr_score, reg_score, score])
             new_props = np.stack(new_props)
             #########################################################################
