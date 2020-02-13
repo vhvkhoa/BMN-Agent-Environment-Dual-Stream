@@ -227,9 +227,6 @@ class BoundaryMatchingNetwork(nn.Module):
             nn.Sigmoid()
         )
 
-    def read_sample_mask(self, sample_mask_file):
-        self.sample_mask = np.load(sample_mask_file)
-
     def forward(self, x):
         temporal_dim = x.size(-1)
         sample_mask = self.reconstruct_sample_mask(temporal_dim)
@@ -250,13 +247,16 @@ class BoundaryMatchingNetwork(nn.Module):
         out = torch.matmul(x, sample_mask).reshape(input_size[0], input_size[1], self.num_sample, temporal_dim, temporal_dim)
         return out
 
+    def read_sample_mask(self, sample_mask_file):
+        self.sample_mask = np.load(sample_mask_file)
+
     def reconstruct_sample_mask(self, temporal_dim):
         sample_mask = np.zeros((temporal_dim, self.num_sample, temporal_dim, temporal_dim))
         for start_idx in range(temporal_dim):
             end_idx = temporal_dim - start_idx
             sample_mask[:, :, :end_idx, start_idx] = self.sample_mask[:temporal_dim, :, :end_idx, start_idx]
 
-        return sample_mask
+        return torch.tensor(sample_mask, requires_grad=False).float()
 
 
 if __name__ == '__main__':
@@ -264,7 +264,7 @@ if __name__ == '__main__':
     model = EventDetection(cfg)
 
     batch_size = 1
-    temporal_dim = 3
+    temporal_dim = 100
     box_dim = 4
     feature_dim = 2304
 

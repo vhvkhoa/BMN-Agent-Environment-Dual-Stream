@@ -14,14 +14,14 @@ _C.DATA.ENV_FEATURE_DIR = "../datasets/tmp_anet/env_features/"
 _C.DATA.AGENT_FEATURE_DIR = "../datasets/tmp_anet/agent_features/"
 _C.DATA.VIDEO_ID_FILE = "../datasets/tmp_anet/tmp_ids.json"
 _C.DATA.VIDEO_ANNOTATION_FILE = "../datasets/tmp_anet/tmp.json"
-_C.DATA.SAMPLE_MASK_FILE = "../datasets/tmp_anet/sample_mask.npy"
+_C.DATA.SAMPLE_MASK_DIR = "../datasets/tmp_anet/sample_masks"
 _C.DATA.MAX_TEMPORAL_DIM = 1500
 
 _C.MODEL = CfgNode()
 _C.MODEL.FEATURE_DIM = 2304
 
 _C.BMN = CfgNode()
-_C.BMN.NUM_SAMPLES = 2
+_C.BMN.NUM_SAMPLES = 32
 _C.BMN.NUM_SAMPLES_PER_BIN = 3
 _C.BMN.SOFT_NMS_ALPHA = 0.4
 _C.BMN.SOFT_NMS_LOW_THRESHOLD = 0.5
