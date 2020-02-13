@@ -1,12 +1,12 @@
+import time
 import math
 import numpy as np
-from tqdm import tqdm
 import argparse
 
 from config.defaults import get_cfg
 
 
-def get_interp1d_bin_mask(self, seg_xmin, seg_xmax, temporal_dim, num_sample, num_sample_perbin):
+def get_interp1d_bin_mask(seg_xmin, seg_xmax, temporal_dim, num_sample, num_sample_perbin):
     # generate sample mask for a boundary-matching pair
     plen = float(seg_xmax - seg_xmin)
     plen_sample = plen / (num_sample * num_sample_perbin - 1.0)
@@ -32,11 +32,11 @@ def get_interp1d_bin_mask(self, seg_xmin, seg_xmax, temporal_dim, num_sample, nu
     return p_mask
 
 
-def get_interp1d_mask(self, temporal_dim):
+def get_interp1d_mask(cfg, temporal_dim):
     # generate sample mask for each point in Boundary-Matching Map
     mask_mat = []
 
-    for start_index in tqdm(range(temporal_dim)):
+    for start_index in range(temporal_dim):
         mask_mat_vector = []
 
         for duration_index in range(temporal_dim):
@@ -44,15 +44,15 @@ def get_interp1d_mask(self, temporal_dim):
                 p_xmin = start_index
                 p_xmax = start_index + duration_index
                 center_len = float(p_xmax - p_xmin) + 1
-                sample_xmin = p_xmin - center_len * self.prop_boundary_ratio
-                sample_xmax = p_xmax + center_len * self.prop_boundary_ratio
+                sample_xmin = p_xmin - center_len * cfg.BMN.PROP_BOUNDARY_RATIO
+                sample_xmax = p_xmax + center_len * cfg.BMN.PROP_BOUNDARY_RATIO
 
-                p_mask = self._get_interp1d_bin_mask(
-                    sample_xmin, sample_xmax, temporal_dim, self.num_sample,
-                    self.num_sample_perbin)
+                p_mask = get_interp1d_bin_mask(
+                    sample_xmin, sample_xmax, temporal_dim, cfg.BMN.NUM_SAMPLES,
+                    cfg.BMN.NUM_SAMPLES_PER_BIN)
 
             else:
-                p_mask = np.zeros([temporal_dim, self.num_sample])
+                p_mask = np.zeros([temporal_dim, cfg.BMN.NUM_SAMPLES])
 
             mask_mat_vector.append(p_mask)
 
@@ -60,13 +60,11 @@ def get_interp1d_mask(self, temporal_dim):
         mask_mat.append(mask_mat_vector)
 
     mask_mat = np.stack(mask_mat, axis=3).astype(np.float32)
-    mask_mat = mask_mat.astype(np.float32)
     return mask_mat
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test-temp-scale', dest='tmp_scale', default=30, type=int)
     parser.add_argument('opts', default=None, nargs=argparse.REMAINDER)
     args = parser.parse_args()
 
@@ -74,14 +72,25 @@ if __name__ == '__main__':
     if args.opts is not None:
         cfg.merge_from_list(args.opts)
 
-    sample_mask = get_interp1d_mask(cfg.DATA.MAX_TEMPORAL_DIM)
+    start_time = time.time()
+    sample_mask = get_interp1d_mask(cfg, cfg.DATA.MAX_TEMPORAL_DIM)
+
+    print('Sample mask for %d temporal dimensions takes %f secs.' % (cfg.DATA.MAX_TEMPORAL_DIM, time.time() - start_time))
     np.save(cfg.DATA.SAMPLE_MASK_FILE, sample_mask)
 
-    test_sample_mask_interp = get_interp1d_mask(args.tmp_scale)
 
-    test_sample_mask = np.zeros((args.tmp_scale, cfg.DATA.NUM_SAMPLES, args.tmp_scale, args.tmp_scale))
-    for idx in range(args.tmp_scale):
-        end_idx = args.tmp_scale - idx
-        test_sample_mask[:, :, :end_idx, idx] = sample_mask[:, :, :end_idx, idx]
+    '''
+    for tmp_scale in range(990, cfg.DATA.MAX_TEMPORAL_DIM):
+        start_time = time.time()
+        test_sample_mask_interp = get_interp1d_mask(cfg, tmp_scale)
+        interp_time = time.time() - start_time
 
-    print(test_sample_mask == test_sample_mask_interp)
+        start_time = time.time()
+        test_sample_mask = np.zeros((tmp_scale, cfg.BMN.NUM_SAMPLES, tmp_scale, tmp_scale))
+        for idx in range(tmp_scale):
+            end_idx = tmp_scale - idx
+            test_sample_mask[:, :, :end_idx, idx] = sample_mask[:tmp_scale, :, :end_idx, idx]
+        reconstruct_time = time.time() - start_time
+
+        print(tmp_scale, '\t', np.array_equal(test_sample_mask, test_sample_mask_interp), reconstruct_time / interp_time)
+    '''
