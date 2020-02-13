@@ -1,6 +1,8 @@
 import math
 import numpy as np
 from tqdm import tqdm
+import argparse
+
 from config.defaults import get_cfg
 
 
@@ -63,7 +65,23 @@ def get_interp1d_mask(self, temporal_dim):
 
 
 if __name__ == '__main__':
-    cfg = get_cfg()
-    sample_mask = get_interp1d_mask(cfg.DATA.MAX_TEMPORAL_DIM)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--test-temp-scale', dest='tmp_scale', default=30, type=int)
+    parser.add_argument('opts', default=None, nargs=argparse.REMAINDER)
+    args = parser.parse_args()
 
+    cfg = get_cfg()
+    if args.opts is not None:
+        cfg.merge_from_list(args.opts)
+
+    sample_mask = get_interp1d_mask(cfg.DATA.MAX_TEMPORAL_DIM)
     np.save(cfg.DATA.SAMPLE_MASK_FILE, sample_mask)
+
+    test_sample_mask_interp = get_interp1d_mask(args.tmp_scale)
+
+    test_sample_mask = np.zeros((args.tmp_scale, cfg.DATA.NUM_SAMPLES, args.tmp_scale, args.tmp_scale))
+    for idx in range(args.tmp_scale):
+        end_idx = args.tmp_scale - idx
+        test_sample_mask[:, :, :end_idx, idx] = sample_mask[:, :, :end_idx, idx]
+
+    print(test_sample_mask == test_sample_mask_interp)
