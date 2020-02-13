@@ -2,6 +2,7 @@
 import copy
 import math
 import numpy as np
+from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -224,6 +225,9 @@ class BoundaryMatchingNetwork(nn.Module):
             nn.Sigmoid()
         )
 
+    def _read_sample_mask(self, sample_mask_file):
+        self.sample_mask = np.load(sample_mask_file)
+
     def forward(self, x):
         temporal_dim = x.size(-1)
         sample_mask = self._get_interp1d_mask(temporal_dim)
@@ -274,7 +278,7 @@ class BoundaryMatchingNetwork(nn.Module):
         # generate sample mask for each point in Boundary-Matching Map
         mask_mat = []
 
-        for start_index in range(temporal_dim):
+        for start_index in tqdm(range(temporal_dim)):
             mask_mat_vector = []
 
             for duration_index in range(temporal_dim):
