@@ -17,6 +17,8 @@ _C.DATA.VIDEO_ANNOTATION_FILE = "../datasets/tmp_anet/tmp.json"
 _C.DATA.SAMPLE_MASK_DIR = "../datasets/tmp_anet/sample_masks"
 _C.DATA.TEMPORAL_DIM = 100
 _C.DATA.FEATURE_DIM = 2304
+_C.DATA.TARGET_FPS = 30
+_C.DATA.SAMPLING_RATE = 16
 
 _C.MODEL = CfgNode()
 

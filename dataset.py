@@ -23,14 +23,6 @@ def load_json(file):
 def train_collate_fn(batch):
     batch_env_features, batch_agent_features, batch_agent_box_lengths, confidence_labels, start_labels, end_labels = zip(*batch)
 
-    # Sort videos in batch by temporal lengths
-    # len_sorted_ids = sorted(range(len(batch_env_features)), key=lambda i: len(batch_env_features[i]))
-    # batch_env_features = [batch_env_features[i] for i in len_sorted_ids]
-    # batch_agent_features = [batch_agent_features[i] for i in len_sorted_ids]
-    # confidence_labels = torch.stack([confidence_labels[i] for i in len_sorted_ids])
-    # start_labels = torch.stack([start_labels[i] for i in len_sorted_ids])
-    # end_labels = torch.stack([end_labels[i] for i in len_sorted_ids])
-
     confidence_labels = torch.stack(confidence_labels)
     start_labels = torch.stack(start_labels)
     end_labels = torch.stack(end_labels)
@@ -68,7 +60,26 @@ def train_collate_fn(batch):
 
 
 def test_collate_fn(batch):
-    return
+    indices, batch_env_features, batch_agent_features, batch_agent_box_lengths = zip(*batch)
+
+    # Create agent feature padding mask
+    batch_agent_box_lengths = pad_sequence(batch_agent_box_lengths, batch_first=True)
+    max_box_dim = torch.max(batch_agent_box_lengths).item()
+    batch_agent_padding_mask = torch.arange(max_box_dim)[None, None, :] < batch_agent_box_lengths[:, :, None]
+
+    # Pad environment features at temporal dimension
+    batch_env_features = pad_sequence(batch_env_features, batch_first=True)
+
+    # Pad agent features at temporal and box dimension
+    batch_size, max_temporal_dim, feature_dim = batch_env_features.size()
+    padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
+
+    for i, temporal_features in enumerate(batch_agent_features):
+        for j, box_features in enumerate(temporal_features):
+            if len(box_features) > 0:
+                padded_batch_agent_features[i, j, :len(box_features)] = torch.tensor(box_features)
+
+    return indices, batch_env_features, padded_batch_agent_features, batch_agent_padding_mask
 
 
 class VideoDataSet(Dataset):
@@ -86,8 +97,11 @@ class VideoDataSet(Dataset):
         self.target_fps = cfg.DATA.TARGET_FPS
         self.sampling_rate = cfg.DATA.SAMPLING_RATE
 
-        self._get_match_map()
         self._get_dataset(cfg)
+        self._get_match_map()
+
+        if self.split != 'train':
+            self.temporal_dim = None
 
     def _get_match_map(self):
         match_map = []
@@ -119,7 +133,6 @@ class VideoDataSet(Dataset):
             annotation = annotations[video_name]
             self.event_dict[video_name] = {
                 'duration': annotation['duration'],
-                'secs_per_frame': annotation['secs_per_frame'],
                 'events': annotation['timestamps']
             }
 
@@ -144,6 +157,7 @@ class VideoDataSet(Dataset):
             video_name, start_idx = self.period_indices[index].values()
         else:
             video_name = self.video_names[index]
+            start_idx = 0
 
         '''
         Read environment features at every timestamp
@@ -155,7 +169,7 @@ class VideoDataSet(Dataset):
 
         env_indices = sorted(env_features_dict.keys(), key=lambda x: float(x))
         env_indices = env_indices[start_idx:self.temporal_dim]
-        env_timestamps = [env_features_dict[t]['timestamps'] for t in env_indices]
+        env_segments = [env_features_dict[t]['segment'] for t in env_indices]
 
         env_features = torch.tensor([env_features_dict[t]['features'] for t in env_indices]).float().squeeze(1)
 
@@ -170,14 +184,13 @@ class VideoDataSet(Dataset):
 
         agent_indices = sorted(agent_features_dict.keys(), key=lambda x: float(x))
         agent_indices = agent_indices[start_idx:self.temporal_dim]
-        agent_timestamps = [agent_features_dict[t]['timestamps'] for t in agent_indices]
-
+        agent_segments = [agent_features_dict[t]['segment'] for t in agent_indices]
         agent_features = [agent_features_dict[t]['features'] for t in agent_indices]
 
         agent_box_lengths = [len(x) for x in agent_features]
 
-        assert env_timestamps == agent_timestamps, 'Two streams must have same paces.'
-        begin_timestamp, end_timestamp = env_timestamps[0][0], env_timestamps[-1][-1]
+        assert env_segments == agent_segments, 'Two streams must have same paces.'
+        begin_timestamp, end_timestamp = env_segments[0][0], env_segments[-1][-1]
 
         return env_features, agent_features, agent_box_lengths, (begin_timestamp, end_timestamp)
 
@@ -237,7 +250,10 @@ class VideoDataSet(Dataset):
         return match_score_start, match_score_end, gt_iou_map
 
     def __len__(self):
-        return len(self.period_indices)
+        if self.split == 'train':
+            return len(self.period_indices)
+        else:
+            return len(self.video_names)
 
 
 if __name__ == '__main__':
