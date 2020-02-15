@@ -52,7 +52,7 @@ def test_collate_fn(batch):
     # Create agent feature padding mask
     batch_agent_box_lengths = pad_sequence(batch_agent_box_lengths, batch_first=True)
     max_box_dim = torch.max(batch_agent_box_lengths).item()
-    batch_agent_padding_mask = torch.arange(max_box_dim)[None, None, :] >= batch_agent_box_lengths[:, :, None]
+    batch_agent_padding_mask = torch.arange(max_box_dim)[None, None, :] < batch_agent_box_lengths[:, :, None]
 
     # Pad environment features at temporal dimension
     batch_env_features = pad_sequence(batch_env_features, batch_first=True)
