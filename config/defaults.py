@@ -3,9 +3,12 @@ from fvcore.common.config import CfgNode
 
 _C = CfgNode()
 
+_C.MODE = 'train'
+
 _C.TRAIN = CfgNode()
+_C.TRAIN.NUM_EPOCHS = 10
 _C.TRAIN.BATCH_SIZE = 1
-_C.TRAIN.ATTENTION_BATCH_SIZE = 128
+_C.TRAIN.ATTENTION_BATCH_SIZE = 16
 _C.TRAIN.LR = 0.001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ""
 
@@ -14,13 +17,13 @@ _C.DATA.ENV_FEATURE_DIR = "../datasets/tmp_anet/env_features/"
 _C.DATA.AGENT_FEATURE_DIR = "../datasets/tmp_anet/agent_features/"
 _C.DATA.VIDEO_ID_FILE = "../datasets/tmp_anet/tmp_ids.json"
 _C.DATA.VIDEO_ANNOTATION_FILE = "../datasets/tmp_anet/tmp.json"
-_C.DATA.SAMPLE_MASK_DIR = "../datasets/tmp_anet/sample_masks"
 _C.DATA.TEMPORAL_DIM = 100
 _C.DATA.FEATURE_DIM = 2304
 _C.DATA.TARGET_FPS = 30
 _C.DATA.SAMPLING_RATE = 16
 
 _C.MODEL = CfgNode()
+_C.MODEL.CHECKPOINT_DIR = 'checkpoints/'
 
 _C.BMN = CfgNode()
 _C.BMN.NUM_SAMPLES = 32

@@ -15,6 +15,8 @@ from loss_function import bmn_loss_func, get_mask
 from post_processing import BMN_post_processing
 from eval import evaluation_proposal
 
+from config.defaults import get_cfg
+
 sys.dont_write_bytecode = True
 
 
@@ -27,10 +29,11 @@ def train_BMN(data_loader, model, optimizer, epoch, bm_mask):
     for n_iter, (env_features, agent_features, agent_padding_masks, label_confidence, label_start, label_end) in enumerate(data_loader):
         env_features = env_features.cuda()
         agent_features = agent_features.cuda()
+        agent_padding_masks = agent_padding_masks.cuda()
         label_start = label_start.cuda()
         label_end = label_end.cuda()
         label_confidence = label_confidence.cuda()
-        confidence_map, start, end = model(env_features, agent_features)
+        confidence_map, start, end = model(env_features, agent_features, agent_padding_masks)
         loss = bmn_loss_func(confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
         optimizer.zero_grad()
         loss[0].backward()
@@ -51,73 +54,51 @@ def train_BMN(data_loader, model, optimizer, epoch, bm_mask):
 
 def test_BMN(data_loader, model, epoch, bm_mask):
     model.eval()
-    best_loss = 1e10
-    epoch_pemreg_loss = 0
-    epoch_pemclr_loss = 0
-    epoch_tem_loss = 0
-    epoch_loss = 0
-    for n_iter, (input_data, label_confidence, label_start, label_end) in enumerate(data_loader):
-        input_data = input_data.cuda()
-        label_start = label_start.cuda()
-        label_end = label_end.cuda()
-        label_confidence = label_confidence.cuda()
+    for indices, env_features, agent_features, agent_padding_masks in data_loader:
+        env_features = env_features.cuda()
+        agent_features = agent_features.cuda()
+        agent_padding_masks = agent_padding_masks.cuda()
 
-        confidence_map, start, end = model(input_data)
-        loss = bmn_loss_func(confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
-
-        epoch_pemreg_loss += loss[2].cpu().detach().numpy()
-        epoch_pemclr_loss += loss[3].cpu().detach().numpy()
-        epoch_tem_loss += loss[1].cpu().detach().numpy()
-        epoch_loss += loss[0].cpu().detach().numpy()
-
-    print(
-        "BMN training loss(epoch %d): tem_loss: %.03f, pem class_loss: %.03f, pem reg_loss: %.03f, total_loss: %.03f" % (
-            epoch, epoch_tem_loss / (n_iter + 1),
-            epoch_pemclr_loss / (n_iter + 1),
-            epoch_pemreg_loss / (n_iter + 1),
-            epoch_loss / (n_iter + 1)))
+        confidence_map, start, end = model(env_features, agent_features, agent_padding_masks)
 
     state = {'epoch': epoch + 1,
              'state_dict': model.state_dict()}
     torch.save(state, opt["checkpoint_path"] + "/BMN_checkpoint.pth.tar")
-    if epoch_loss < best_loss:
-        best_loss = epoch_loss
-        torch.save(state, opt["checkpoint_path"] + "/BMN_best.pth.tar")
 
 
-def BMN_Train(opt):
-    model = EventDetection(opt)
+def BMN_Train(cfg):
+    model = EventDetection(cfg)
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=opt["training_lr"],
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR,
                            weight_decay=opt["weight_decay"])
 
-    train_loader = torch.utils.data.DataLoader(VideoDataSet(opt, split="train"),
-                                               batch_size=opt["batch_size"], shuffle=True,
+    train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="train"),
+                                               batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                                num_workers=8, pin_memory=True, collate_fn=train_collate_fn)
 
-    test_loader = torch.utils.data.DataLoader(VideoDataSet(opt, split="validation"),
-                                              batch_size=opt["batch_size"], shuffle=False,
-                                              num_workers=8, pin_memory=True, collate_fn=train_collate_fn)
+    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="validation"),
+                                              batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=False,
+                                              num_workers=8, pin_memory=True, collate_fn=test_collate_fn)
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt["step_size"], gamma=opt["step_gamma"])
-    bm_mask = get_mask(opt["temporal_scale"])
-    for epoch in range(opt["train_epochs"]):
-        scheduler.step()
+    bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
+    for epoch in range(cfg.TRAIN.NUM_EPOCHS):
         train_BMN(train_loader, model, optimizer, epoch, bm_mask)
-        test_BMN(test_loader, model, epoch, bm_mask)
+        scheduler.step()
+        # test_BMN(test_loader, model, epoch, bm_mask)
 
 
-def BMN_inference(opt):
-    model = EventDetection(opt)
+def BMN_inference(cfg):
+    model = EventDetection(cfg)
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
-    checkpoint = torch.load(opt["checkpoint_path"] + "/BMN_best.pth.tar")
+    checkpoint = torch.load(os.path.join(cfg.MODEL.CHECKPOINT_DIR, "BMN_best.pth.tar"))
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 
-    test_loader = torch.utils.data.DataLoader(VideoDataSet(opt, split="validation"),
+    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="validation"),
                                               batch_size=1, shuffle=False,
                                               num_workers=8, pin_memory=True, drop_last=False, collate_fn=train_collate_fn)
-    tscale = opt["temporal_scale"]
+    tscale = cfg.DATA.TEMPORAL_DIM
     with torch.no_grad():
         for idx, input_data in test_loader:
             video_name = test_loader.dataset.video_list[idx[0]]
@@ -176,20 +157,21 @@ def BMN_inference(opt):
             new_df.to_csv("./output/BMN_results/" + video_name + ".csv", index=False)
 
 
-def main(opt):
-    if opt["mode"] == "train":
-        BMN_Train(opt)
-    elif opt["mode"] == "inference":
+def main(cfg):
+    if cfg.MODE == "train":
+        BMN_Train(cfg)
+    elif cfg.MODE == "inference":
         if not os.path.exists("output/BMN_results"):
             os.makedirs("output/BMN_results")
-        BMN_inference(opt)
+        BMN_inference(cfg)
         print("Post processing start")
-        BMN_post_processing(opt)
+        BMN_post_processing(cfg)
         print("Post processing finished")
-        evaluation_proposal(opt)
+        evaluation_proposal(cfg)
 
 
 if __name__ == '__main__':
+    cfg = get_cfg()
     opt = opts.parse_opt()
     opt = vars(opt)
     if not os.path.exists(opt["checkpoint_path"]):
@@ -204,4 +186,4 @@ if __name__ == '__main__':
     # print(b.shape, c.shape)
     # print(b)
     # print(c)
-    main(opt)
+    main(cfg)
