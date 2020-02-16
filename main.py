@@ -34,6 +34,12 @@ def train_BMN(data_loader, model, optimizer, epoch, bm_mask):
         label_end = label_end.cuda()
         label_confidence = label_confidence.cuda()
         confidence_map, start, end = model(env_features, agent_features, agent_padding_masks)
+        if torch.sum(torch.isnan(confidence_map)) > 0:
+            print('nan in confidence_map')
+        if torch.sum(torch.isnan(start)) > 0:
+            print('nan in start')
+        if torch.sum(torch.isnan(end)) > 0:
+            print('nan in end')
         loss = bmn_loss_func(confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
         optimizer.zero_grad()
         loss[0].backward()
