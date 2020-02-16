@@ -152,7 +152,7 @@ class EventDetection(nn.Module):
             # *Temporally*, will fix later
             fuser_output = torch.mean(self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask), dim=0)
             if torch.sum(torch.isnan(fuser_output)).item() > 0:
-                print(torch.sum(torch.isnan(fuser_output)).item(), torch.sum(torch.isnan(fuser_input)).item())
+                print(torch.mean(fuser_output, dim=1), torch.mean(fuser_input, dim=1))
                 print(attention_padding_mask)
                 sys.exit()
             fused_agent_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
