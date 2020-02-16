@@ -94,6 +94,10 @@ def pem_cls_loss_func(pred_score, gt_iou_map, mask):
     pmask = (gt_iou_map > 0.9).float()
     nmask = (gt_iou_map <= 0.9).float()
     nmask = nmask * mask
+    if torch.sum(torch.isnan(pmask)) > 0:
+        print('nan in pmask')
+    if torch.sum(torch.isnan(nmask)) > 0:
+        print('nan in nmask')
 
     num_positive = torch.sum(pmask)
     num_entries = num_positive + torch.sum(nmask)
@@ -103,5 +107,9 @@ def pem_cls_loss_func(pred_score, gt_iou_map, mask):
     epsilon = 0.000001
     loss_pos = coef_1 * torch.log(pred_score + epsilon) * pmask
     loss_neg = coef_0 * torch.log(1.0 - pred_score + epsilon) * nmask
+    if torch.sum(torch.isnan(loss_pos)) > 0:
+        print('nan in loss_pos')
+    if torch.sum(torch.isnan(loss_neg)) > 0:
+        print('nan in loss_neg')
     loss = -1 * torch.sum(loss_pos + loss_neg) / num_entries
     return loss
