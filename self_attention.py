@@ -141,9 +141,6 @@ def modified_multi_head_attention_forward(query,
             # self-attention
             q, k, v = linear(query, in_proj_weight, in_proj_bias).chunk(3, dim=-1)
             if torch.sum(torch.isnan(q)).item() > 0:
-                print('1', torch.any(torch.isnan(query)))
-                print('2', torch.any(torch.isnan(in_proj_weight)))
-                print('3', torch.any(torch.isnan(in_proj_bias)))
                 print('error before in q', torch.all(torch.isnan(q)))
             if torch.sum(torch.isnan(k)).item() > 0:
                 print('error before in k', torch.all(torch.isnan(k)))

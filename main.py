@@ -39,6 +39,8 @@ def train_BMN(data_loader, model, optimizer, epoch, bm_mask):
         loss[0].backward()
         optimizer.step()
 
+        print("Step %d. Loss: %f" % (n_iter, loss[0].cpu().detach().numpy()))
+
         epoch_pemreg_loss += loss[2].cpu().detach().numpy()
         epoch_pemclr_loss += loss[3].cpu().detach().numpy()
         epoch_tem_loss += loss[1].cpu().detach().numpy()
