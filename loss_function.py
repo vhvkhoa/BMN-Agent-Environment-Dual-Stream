@@ -20,16 +20,6 @@ def bmn_loss_func(pred_bm, pred_start, pred_end, gt_iou_map, gt_start, gt_end, b
 
     gt_iou_map = gt_iou_map * bm_mask
 
-    if torch.sum(torch.isnan(gt_iou_map)) > 0:
-        print('nan in gt_iou_map')
-    if torch.sum(torch.isnan(bm_mask)) > 0:
-        print('nan in bm_mask')
-    if torch.sum(torch.isnan(pred_bm)) > 0:
-        print('nan in confidence_map')
-    if torch.sum(torch.isnan(pred_start)) > 0:
-        print('nan in start')
-    if torch.sum(torch.isnan(pred_end)) > 0:
-        print('nan in end')
     pem_reg_loss = pem_reg_loss_func(pred_bm_reg, gt_iou_map, bm_mask)
     pem_cls_loss = pem_cls_loss_func(pred_bm_cls, gt_iou_map, bm_mask)
     tem_loss = tem_loss_func(pred_start, pred_end, gt_start, gt_end)
@@ -94,10 +84,6 @@ def pem_cls_loss_func(pred_score, gt_iou_map, mask):
     pmask = (gt_iou_map > 0.9).float()
     nmask = (gt_iou_map <= 0.9).float()
     nmask = nmask * mask
-    if torch.sum(torch.isnan(pmask)) > 0:
-        print('nan in pmask')
-    if torch.sum(torch.isnan(nmask)) > 0:
-        print('nan in nmask')
 
     num_positive = torch.sum(pmask)
     num_entries = num_positive + torch.sum(nmask)
@@ -105,6 +91,7 @@ def pem_cls_loss_func(pred_score, gt_iou_map, mask):
     coef_0 = 0.5 * ratio / (ratio - 1)
     coef_1 = 0.5 * ratio
     epsilon = 0.000001
+    print(ratio, coef_0, coef_1, pred_score.size())
     loss_pos = coef_1 * torch.log(pred_score + epsilon) * pmask
     loss_neg = coef_0 * torch.log(1.0 - pred_score + epsilon) * nmask
     if torch.sum(torch.isnan(loss_pos)) > 0:
