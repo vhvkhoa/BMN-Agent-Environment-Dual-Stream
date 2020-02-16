@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import sys
 import copy
 import math
 import numpy as np
@@ -6,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from config.defaults import get_cfg
-import sys
+from self_attention import ModifiedMultiheadAttention
 
 
 def _get_clones(module, N):
@@ -90,7 +91,7 @@ class TransformerEncoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
         super(TransformerEncoderLayer, self).__init__()
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
+        self.self_attn = ModifiedMultiheadAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
         self.dropout = nn.Dropout(dropout)
@@ -116,14 +117,26 @@ class TransformerEncoderLayer(nn.Module):
         """
         src2 = self.self_attn(src, src, src, attn_mask=src_mask,
                               key_padding_mask=key_padding_mask)[0]
+        if key_padding_mask is not None:
+            src2 = src2.masked_fill(key_padding_mask.permute(1, 0).unsqueeze(-1), 0)
         src = src + self.dropout1(src2)
+        if torch.sum(torch.isnan(src)).item() > 0:
+            print('error after dropout1')
         src = self.norm1(src)
+        if torch.sum(torch.isnan(src)).item() > 0:
+            print('error after norm1')
         if hasattr(self, "activation"):
             src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
         else:  # for backward compatibility
             src2 = self.linear2(self.dropout(F.relu(self.linear1(src))))
+        if torch.sum(torch.isnan(src2)).item() > 0:
+            print('error after linear2')
         src = src + self.dropout2(src2)
+        if torch.sum(torch.isnan(src)).item() > 0:
+            print('error after dropout2')
         src = self.norm2(src)
+        if torch.sum(torch.isnan(src)).item() > 0:
+            print('error after norm2')
         return src
 
 
@@ -150,11 +163,12 @@ class EventDetection(nn.Module):
             attention_padding_mask = agent_padding_mask[:, sample_begin: sample_end].view(-1, num_boxes)
 
             # *Temporally*, will fix later
-            fuser_output = torch.mean(self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask), dim=0)
+            fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask)
             if torch.sum(torch.isnan(fuser_output)).item() > 0:
-                print(torch.mean(fuser_output, dim=1), torch.mean(fuser_input, dim=1))
+                print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
                 print(attention_padding_mask)
                 sys.exit()
+            fuser_output = torch.mean(fuser_output, dim=0)
             fused_agent_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
 
         # Fuse agent context and environment context together at every temporal point
