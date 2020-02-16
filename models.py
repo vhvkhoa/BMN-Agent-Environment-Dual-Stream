@@ -130,7 +130,7 @@ class TransformerEncoderLayer(nn.Module):
         if key_padding_mask is not None:
             src = src.masked_fill(key_padding_mask.permute(1, 0).unsqueeze(-1), 0)
         if torch.sum(torch.isnan(src)).item() > 0:
-            print('error after norm2')
+            print('error in forward')
         return src
 
 
