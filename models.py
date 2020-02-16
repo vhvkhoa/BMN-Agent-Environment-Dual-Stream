@@ -120,21 +120,15 @@ class TransformerEncoderLayer(nn.Module):
         if key_padding_mask is not None:
             src2 = src2.masked_fill(key_padding_mask.permute(1, 0).unsqueeze(-1), 0)
         src = src + self.dropout1(src2)
-        if torch.sum(torch.isnan(src)).item() > 0:
-            print('error after dropout1')
         src = self.norm1(src)
-        if torch.sum(torch.isnan(src)).item() > 0:
-            print('error after norm1')
         if hasattr(self, "activation"):
             src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
         else:  # for backward compatibility
             src2 = self.linear2(self.dropout(F.relu(self.linear1(src))))
-        if torch.sum(torch.isnan(src2)).item() > 0:
-            print('error after linear2')
         src = src + self.dropout2(src2)
-        if torch.sum(torch.isnan(src)).item() > 0:
-            print('error after dropout2')
         src = self.norm2(src)
+        if key_padding_mask is not None:
+            src = src.masked_fill(key_padding_mask.permute(1, 0).unsqueeze(-1), 0)
         if torch.sum(torch.isnan(src)).item() > 0:
             print('error after norm2')
         return src
