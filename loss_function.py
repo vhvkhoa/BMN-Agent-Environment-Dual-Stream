@@ -91,7 +91,7 @@ def pem_cls_loss_func(pred_score, gt_iou_map, mask):
     coef_0 = 0.5 * ratio / (ratio - 1)
     coef_1 = 0.5 * ratio
     epsilon = 0.000001
-    print(ratio, coef_0, coef_1, pred_score.size())
+    print(num_entries, num_positive, ratio, coef_0, coef_1, pred_score.size())
     loss_pos = coef_1 * torch.log(pred_score + epsilon) * pmask
     loss_neg = coef_0 * torch.log(1.0 - pred_score + epsilon) * nmask
     if torch.sum(torch.isnan(loss_pos)) > 0:
