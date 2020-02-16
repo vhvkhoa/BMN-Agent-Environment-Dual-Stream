@@ -129,8 +129,6 @@ class TransformerEncoderLayer(nn.Module):
         src = self.norm2(src)
         if key_padding_mask is not None:
             src = src.masked_fill(key_padding_mask.permute(1, 0).unsqueeze(-1), 0)
-        if torch.sum(torch.isnan(src)).item() > 0:
-            print('error in forward')
         return src
 
 
