@@ -20,6 +20,16 @@ def bmn_loss_func(pred_bm, pred_start, pred_end, gt_iou_map, gt_start, gt_end, b
 
     gt_iou_map = gt_iou_map * bm_mask
 
+    if torch.sum(torch.isnan(gt_iou_map)) > 0:
+        print('nan in gt_iou_map')
+    if torch.sum(torch.isnan(bm_mask)) > 0:
+        print('nan in bm_mask')
+    if torch.sum(torch.isnan(pred_bm)) > 0:
+        print('nan in confidence_map')
+    if torch.sum(torch.isnan(pred_start)) > 0:
+        print('nan in start')
+    if torch.sum(torch.isnan(pred_end)) > 0:
+        print('nan in end')
     pem_reg_loss = pem_reg_loss_func(pred_bm_reg, gt_iou_map, bm_mask)
     pem_cls_loss = pem_cls_loss_func(pred_bm_cls, gt_iou_map, bm_mask)
     tem_loss = tem_loss_func(pred_start, pred_end, gt_start, gt_end)
