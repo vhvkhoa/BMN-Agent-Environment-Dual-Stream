@@ -38,7 +38,7 @@ class TransformerEncoder(nn.Module):
         >>> out = transformer_encoder(src)
     """
 
-    def __init__(self, num_features, num_heads=6, dim_feedforward=2048, drop_out=0.1, activation='relu', num_layers=4, norm=None):
+    def __init__(self, num_features, num_heads=6, dim_feedforward=2048, drop_out=0.1, activation='relu', num_layers=1, norm=None):
         super(TransformerEncoder, self).__init__()
         encoder_layer = TransformerEncoderLayer(num_features, num_heads, dim_feedforward, drop_out, activation)
         self.layers = _get_clones(encoder_layer, num_layers)
