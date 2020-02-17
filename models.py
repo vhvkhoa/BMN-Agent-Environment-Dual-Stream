@@ -149,6 +149,7 @@ class EventDetection(nn.Module):
         # Fuse all agents together at every temporal point
         fused_agent_features = torch.empty_like(env_features)
         for sample_begin in range(0, agent_features.size(1), self.agents_fuser_batch_size // batch_size):
+            print('start')
             sample_end = min(agent_features.size(1), sample_begin + self.agents_fuser_batch_size // batch_size)
 
             fuser_input = agent_features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
