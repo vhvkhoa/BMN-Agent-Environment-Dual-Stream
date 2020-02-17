@@ -145,6 +145,7 @@ class EventDetection(nn.Module):
 
     def forward(self, env_features, agent_features, agent_padding_mask):
         batch_size, temporal_size, num_boxes, feature_size = agent_features.size()
+        print(agent_padding_mask.size())
 
         # Fuse all agents together at every temporal point
         fused_agent_features = torch.empty_like(env_features)
