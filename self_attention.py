@@ -139,9 +139,17 @@ def modified_multi_head_attention_forward(query,
     if not use_separate_proj_weight:
         if torch.equal(query, key) and torch.equal(key, value):
             # self-attention
+            if torch.sum(torch.isnan(in_proj_weight)).item() > 0:
+                print('error in in_proj_weight', torch.sum(torch.isnan(in_proj_weight)).item())
+            if torch.sum(torch.isnan(in_proj_bias)).item() > 0:
+                print('error in in_proj_bias', torch.sum(torch.isnan(in_proj_bias)).item())
             q, k, v = linear(query, in_proj_weight, in_proj_bias).chunk(3, dim=-1)
             if torch.sum(torch.isnan(q)).item() > 0:
                 print('error in q')
+            if torch.sum(torch.isnan(k)).item() > 0:
+                print('error in k')
+            if torch.sum(torch.isnan(v)).item() > 0:
+                print('error in v')
 
         elif torch.equal(key, value):
             # encoder-decoder attention
