@@ -1,7 +1,54 @@
 # -*- coding: utf-8 -*-
 import torch
 import numpy as np
+import torch.nn as nn
 import torch.nn.functional as F
+
+
+class FocalLoss(nn.Module):
+    """
+    This is a implementation of Focal Loss with smooth label cross entropy supported which is proposed in
+    'Focal Loss for Dense Object Detection. (https://arxiv.org/abs/1708.02002)'
+        Focal_Loss= -1*alpha*(1-pt)*log(pt)
+    :param num_class:
+    :param alpha: (tensor) 3D or 4D the scalar factor for this criterion
+    :param gamma: (float,double) gamma > 0 reduces the relative loss for well-classified examples (p>0.5) putting more
+                    focus on hard misclassified example
+    :param smooth: (float,double) smooth value when cross entropy
+    :param balance_index: (int) balance class index, should be specific when alpha is float
+    :param size_average: (bool, optional) By default, the losses are averaged over each loss element in the batch.
+    """
+
+    def __init__(self, alpha=None, gamma=2, size_average=True):
+        super(FocalLoss, self).__init__()
+        if isinstance(alpha, (float, int)):
+            self.alpha = torch.tensor([alpha, 1 - alpha])
+        elif isinstance(alpha, (list, tuple)):
+            self.alpha = torch.tensor(alpha)
+        else:
+            print('Not supported alpha type. Initiate by None')
+            self.alpha = None
+
+        self.gamma = gamma
+        self.size_average = size_average
+
+    def forward(self, logit, target):
+        logit = logit.view(-1, 1)
+        target = target.view(-1, 1)
+
+        epsilon = 1e-10
+        pt = torch.where(target, logit, 1 - logit) + epsilon
+        logpt = torch.log(pt)
+        if self.alpha is not None:
+            logpt = torch.where(target, self.alpha[0] * logpt, self.alpha[1] * logpt)
+
+        loss = -1 * torch.pow((1 - pt), self.gamma) * logpt
+
+        if self.size_average:
+            loss = loss.mean()
+        else:
+            loss = loss.sum()
+        return loss
 
 
 def get_mask(tscale):
@@ -14,34 +61,24 @@ def get_mask(tscale):
     return torch.Tensor(bm_mask)
 
 
-def bmn_loss_func(pred_bm, pred_start, pred_end, gt_iou_map, gt_start, gt_end, bm_mask):
+def bmn_loss_func(focal_loss, pred_bm, pred_start, pred_end, gt_iou_map, gt_start, gt_end, bm_mask):
     pred_bm_reg = pred_bm[:, 0].contiguous()
     pred_bm_cls = pred_bm[:, 1].contiguous()
 
     gt_iou_map = gt_iou_map * bm_mask
 
     pem_reg_loss = pem_reg_loss_func(pred_bm_reg, gt_iou_map, bm_mask)
-    pem_cls_loss = pem_cls_loss_func(pred_bm_cls, gt_iou_map, bm_mask)
-    tem_loss = tem_loss_func(pred_start, pred_end, gt_start, gt_end)
+    pem_cls_loss = pem_cls_loss_func(focal_loss, pred_bm_cls, gt_iou_map, bm_mask)
+    tem_loss = tem_loss_func(focal_loss, pred_start, pred_end, gt_start, gt_end)
 
     loss = tem_loss + 10 * pem_reg_loss + pem_cls_loss
     return loss, tem_loss, pem_reg_loss, pem_cls_loss
 
 
-def tem_loss_func(pred_start, pred_end, gt_start, gt_end):
+def tem_loss_func(focal_loss, pred_start, pred_end, gt_start, gt_end):
     def bi_loss(pred_score, gt_label):
-        pred_score = pred_score.view(-1)
-        gt_label = gt_label.view(-1)
-        pmask = (gt_label > 0.5).float()
-        num_entries = len(pmask)
-        num_positive = torch.sum(pmask)
-        ratio = num_entries / num_positive
-        coef_0 = 0.5 * ratio / (ratio - 1)
-        coef_1 = 0.5 * ratio
-        epsilon = 0.000001
-        loss_pos = coef_1 * torch.log(pred_score + epsilon) * pmask
-        loss_neg = coef_0 * torch.log(1.0 - pred_score + epsilon) * (1.0 - pmask)
-        loss = -1 * torch.mean(loss_pos + loss_neg)
+        positive_mask = gt_label > 0.5
+        loss = focal_loss(pred_score, positive_mask)
         return loss
 
     loss_start = bi_loss(pred_start, gt_start)
@@ -79,24 +116,10 @@ def pem_reg_loss_func(pred_score, gt_iou_map, mask):
     return loss
 
 
-def pem_cls_loss_func(pred_score, gt_iou_map, mask):
+def pem_cls_loss_func(focal_loss, pred_score, gt_iou_map, mask):
+    positive_gt = gt_iou_map > 0.9
 
-    pmask = (gt_iou_map > 0.9).float()
-    nmask = (gt_iou_map <= 0.9).float()
-    nmask = nmask * mask
-
-    num_positive = torch.sum(pmask)
-    num_entries = num_positive + torch.sum(nmask)
-    ratio = num_entries / num_positive
-    coef_0 = 0.5 * ratio / (ratio - 1)
-    coef_1 = 0.5 * ratio
-    epsilon = 0.000001
-    print(num_entries, num_positive, ratio, coef_0, coef_1, pred_score.size())
-    loss_pos = coef_1 * torch.log(pred_score + epsilon) * pmask
-    loss_neg = coef_0 * torch.log(1.0 - pred_score + epsilon) * nmask
-    if torch.sum(torch.isnan(loss_pos)) > 0:
-        print('nan in loss_pos')
-    if torch.sum(torch.isnan(loss_neg)) > 0:
-        print('nan in loss_neg')
-    loss = -1 * torch.sum(loss_pos + loss_neg) / num_entries
+    loss = focal_loss(pred_score, positive_gt)
+    if torch.sum(torch.isnan(loss)) > 0:
+        print('nan in pem_cls_loss')
     return loss
