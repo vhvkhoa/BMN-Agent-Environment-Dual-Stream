@@ -11,7 +11,7 @@ import torch.optim as optim
 import opts
 from models import EventDetection
 from dataset import VideoDataSet, train_collate_fn, test_collate_fn
-from loss_function import bmn_loss_func, get_mask
+from loss_function import FocalLoss, bmn_loss_func, get_mask
 from post_processing import BMN_post_processing
 from eval import evaluation_proposal
 
@@ -20,7 +20,7 @@ from config.defaults import get_cfg
 sys.dont_write_bytecode = True
 
 
-def train_BMN(data_loader, model, optimizer, epoch, bm_mask):
+def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
     model.train()
     epoch_pemreg_loss = 0
     epoch_pemclr_loss = 0
@@ -34,7 +34,7 @@ def train_BMN(data_loader, model, optimizer, epoch, bm_mask):
         label_end = label_end.cuda()
         label_confidence = label_confidence.cuda()
         confidence_map, start, end = model(env_features, agent_features, agent_padding_masks)
-        loss = bmn_loss_func(confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
+        loss = bmn_loss_func(focal_loss, confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
         optimizer.zero_grad()
         loss[0].backward()
         optimizer.step()
@@ -78,6 +78,7 @@ def BMN_Train(cfg):
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR,
                            weight_decay=opt["weight_decay"])
+    focal_loss = FocalLoss()
 
     train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="train"),
                                                batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
@@ -90,7 +91,7 @@ def BMN_Train(cfg):
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt["step_size"], gamma=opt["step_gamma"])
     bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
     for epoch in range(cfg.TRAIN.NUM_EPOCHS):
-        train_BMN(train_loader, model, optimizer, epoch, bm_mask)
+        train_BMN(train_loader, model, optimizer, epoch, focal_loss, bm_mask)
         scheduler.step()
         # test_BMN(test_loader, model, epoch, bm_mask)
 
