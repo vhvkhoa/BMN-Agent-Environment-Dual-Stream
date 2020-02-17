@@ -62,17 +62,18 @@ def get_mask(tscale):
 
 
 def bmn_loss_func(focal_loss, pred_bm, pred_start, pred_end, gt_iou_map, gt_start, gt_end, bm_mask):
-    pred_bm_reg = pred_bm[:, 0].contiguous()
+    # pred_bm_reg = pred_bm[:, 0].contiguous()
     pred_bm_cls = pred_bm[:, 1].contiguous()
 
     gt_iou_map = gt_iou_map * bm_mask
 
-    pem_reg_loss = pem_reg_loss_func(pred_bm_reg, gt_iou_map, bm_mask)
+    # pem_reg_loss = pem_reg_loss_func(pred_bm_reg, gt_iou_map, bm_mask)
     pem_cls_loss = pem_cls_loss_func(focal_loss, pred_bm_cls, gt_iou_map, bm_mask)
     tem_loss = tem_loss_func(focal_loss, pred_start, pred_end, gt_start, gt_end)
 
-    loss = tem_loss + 10 * pem_reg_loss + pem_cls_loss
-    return loss, tem_loss, pem_reg_loss, pem_cls_loss
+    # loss = tem_loss + 10 * pem_reg_loss + pem_cls_loss
+    loss = tem_loss + pem_cls_loss
+    return loss, tem_loss, pem_cls_loss
 
 
 def tem_loss_func(focal_loss, pred_start, pred_end, gt_start, gt_end):
