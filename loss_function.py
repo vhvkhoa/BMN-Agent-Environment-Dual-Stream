@@ -118,7 +118,7 @@ def pem_reg_loss_func(pred_score, gt_iou_map, mask):
 
 
 def pem_cls_loss_func(focal_loss, pred_score, gt_iou_map, mask):
-    positive_gt = gt_iou_map > 0.9
+    positive_gt = gt_iou_map > 0.8
 
     loss = focal_loss(pred_score, positive_gt)
     if torch.sum(torch.isnan(loss)) > 0:
