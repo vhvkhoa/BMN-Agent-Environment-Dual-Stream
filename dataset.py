@@ -30,7 +30,7 @@ def train_collate_fn(batch):
 
     batch_size, max_temporal_dim = batch_box_lengths.size()
     max_box_dim = torch.max(batch_box_lengths).item()
-    feature_dim = batch_features.size(-1)
+    feature_dim = len(batch_features[0][0][0])
 
     batch_padding_mask = torch.arange(max_box_dim)[None, None, :] >= batch_box_lengths[:, :, None]
     batch_length_mask = (batch_box_lengths == 0)
