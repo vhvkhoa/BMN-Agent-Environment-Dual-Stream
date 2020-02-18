@@ -27,7 +27,6 @@ def train_collate_fn(batch):
     end_labels = torch.stack(end_labels)
 
     batch_box_lengths = torch.stack(batch_box_lengths, dim=0)
-    print(batch_box_lengths)
 
     batch_size, max_temporal_dim = batch_box_lengths.size()
     max_box_dim = torch.max(batch_box_lengths).item()
@@ -184,7 +183,6 @@ class VideoDataSet(Dataset):
         agent_features = [feature['features'] for feature in agent_features]
 
         assert env_segments == agent_segments, 'Two streams must have same segments.'
-        print(len(env_features))
 
         # Merge agent and environment features
         merge_features = []
@@ -195,7 +193,6 @@ class VideoDataSet(Dataset):
         box_lengths = torch.tensor([len(x) for x in merge_features])
         if self.split == 'train':
             box_lengths = torch.cat([box_lengths, torch.zeros(self.temporal_dim - len(merge_features)).long()], dim=0)
-        print(box_lengths)
 
         begin_timestamp, end_timestamp = env_segments[0][0], env_segments[-1][-1]
 

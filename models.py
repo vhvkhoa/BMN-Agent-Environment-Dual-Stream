@@ -145,7 +145,6 @@ class EventDetection(nn.Module):
 
     def forward(self, features, length_mask, padding_mask):
         batch_size, temporal_size, num_boxes, feature_size = features.size()
-        print(length_mask)
 
         # Fuse all agents together at every temporal point
         fused_features = torch.empty(batch_size, temporal_size, feature_size)
@@ -162,7 +161,7 @@ class EventDetection(nn.Module):
                 sys.exit()
             fuser_output = torch.mean(fuser_output, dim=0)
             fused_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
-        fused_features = fused_features.masked_fill(length_mask, 0)
+        fused_features = fused_features.masked_fill(length_mask.unsqueeze(-1), 0)
 
         # Event detection with context features
         fused_features = fused_features.permute(0, 2, 1)
