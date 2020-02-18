@@ -153,10 +153,8 @@ class EventDetection(nn.Module):
         fused_features = torch.zeros(batch_size, temporal_size, feature_size).cuda()
         while length_idx >= 0:
             sample_end = min(lengths[length_idx], sample_begin + step)
-            if sample_end == lengths[length_idx]:
-                length_idx -= 1
 
-            fuser_input = features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
+            fuser_input = features[:batch_size, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
             attention_padding_masks = padding_masks[:, sample_begin: sample_end].view(-1, num_boxes)
 
             # *Temporally*, will fix later
@@ -165,11 +163,12 @@ class EventDetection(nn.Module):
                 print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
                 sys.exit()
             fuser_output = torch.mean(fuser_output, dim=0)
-            fused_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
+            fused_features[:batch_size, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
 
+            while sample_end == lengths[length_idx]:
+                length_idx -= 1
+                batch_size -= 1
             sample_begin = sample_end
-
-        fused_features = fused_features.masked_fill(torch.unsqueeze(lengths, -1), 0)
 
         # Event detection with context features
         fused_features = fused_features.permute(0, 2, 1)
