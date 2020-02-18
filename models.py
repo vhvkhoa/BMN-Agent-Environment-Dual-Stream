@@ -155,7 +155,8 @@ class EventDetection(nn.Module):
             sample_end = min(lengths[length_idx], sample_begin + step)
 
             fuser_input = features[:batch_size, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
-            attention_padding_masks = padding_masks[:, sample_begin: sample_end].view(-1, num_boxes)
+            attention_padding_masks = padding_masks[:batch_size, sample_begin: sample_end].view(-1, num_boxes)
+            print(fuser_input.size())
 
             # *Temporally*, will fix later
             fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
