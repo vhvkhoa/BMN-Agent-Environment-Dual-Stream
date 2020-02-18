@@ -22,18 +22,26 @@ def load_json(file):
 def train_collate_fn(batch):
     batch_features, batch_box_lengths, confidence_labels, start_labels, end_labels = zip(*batch)
 
-    confidence_labels = torch.stack(confidence_labels)
-    start_labels = torch.stack(start_labels)
-    end_labels = torch.stack(end_labels)
-
+    # Make new order to inputs by their lengths (long-to-short)
     batch_box_lengths = torch.stack(batch_box_lengths, dim=0)
 
     batch_size, max_temporal_dim = batch_box_lengths.size()
     max_box_dim = torch.max(batch_box_lengths).item()
     feature_dim = len(batch_features[0][0][0])
 
+    batch_lengths = torch.sum(batch_box_lengths == 0, dim=-1).tolist()
+    sorted_by_length = sorted(range(batch_size), key=lambda x: batch_lengths[x], reverse=True)
+
+    # Reorder inputs by new indices
+    confidence_labels = torch.stack(confidence_labels)[sorted_by_length]
+    start_labels = torch.stack(start_labels)[sorted_by_length]
+    end_labels = torch.stack(end_labels)[sorted_by_length]
+    batch_box_lengths = batch_box_lengths[sorted_by_length]
+    batch_features = torch.tensor([batch_features[idx] for idx in sorted_by_length])
+    batch_lengths = batch_lengths[sorted_by_length]
+
+    # Make padding mask for self-attention
     batch_padding_mask = torch.arange(max_box_dim)[None, None, :] >= batch_box_lengths[:, :, None]
-    batch_length_mask = (batch_box_lengths == 0)
 
     # Pad agent features at temporal and box dimension
     padded_batch_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
@@ -42,7 +50,7 @@ def train_collate_fn(batch):
             if len(box_features) > 0:
                 padded_batch_features[i, j, :len(box_features)] = torch.tensor(box_features)
 
-    return padded_batch_features, batch_length_mask, batch_padding_mask, confidence_labels, start_labels, end_labels
+    return padded_batch_features, batch_lengths, batch_padding_mask, confidence_labels, start_labels, end_labels
 
 
 def test_collate_fn(batch):

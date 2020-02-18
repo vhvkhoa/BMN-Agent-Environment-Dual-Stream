@@ -143,25 +143,33 @@ class EventDetection(nn.Module):
         self.agents_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
         self.agents_environment_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
 
-    def forward(self, features, length_mask, padding_mask):
+    def forward(self, features, lengths, padding_masks):
         batch_size, temporal_size, num_boxes, feature_size = features.size()
+
+        length_idx, sample_begin = len(lengths) - 1, 0
+        step = self.agents_fuser_batch_size // batch_size
 
         # Fuse all agents together at every temporal point
         fused_features = torch.zeros(batch_size, temporal_size, feature_size).cuda()
-        for sample_begin in range(0, features.size(1), self.agents_fuser_batch_size // batch_size):
-            sample_end = min(features.size(1), sample_begin + self.agents_fuser_batch_size // batch_size)
+        while length_idx >= 0:
+            sample_end = min(lengths[length_idx], sample_begin + step)
+            if sample_end == lengths[length_idx]:
+                length_idx -= 1
 
             fuser_input = features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
-            attention_padding_mask = padding_mask[:, sample_begin: sample_end].view(-1, num_boxes)
+            attention_padding_masks = padding_masks[:, sample_begin: sample_end].view(-1, num_boxes)
 
             # *Temporally*, will fix later
-            fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask)
+            fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
             if torch.sum(torch.isnan(fuser_output)).item() > 0:
                 print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
                 sys.exit()
             fuser_output = torch.mean(fuser_output, dim=0)
             fused_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
-        fused_features = fused_features.masked_fill(torch.unsqueeze(length_mask, -1), 0)
+
+            sample_begin = sample_end
+
+        fused_features = fused_features.masked_fill(torch.unsqueeze(lengths, -1), 0)
 
         # Event detection with context features
         fused_features = fused_features.permute(0, 2, 1)
