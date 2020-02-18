@@ -154,6 +154,7 @@ class EventDetection(nn.Module):
         fused_features = torch.zeros(batch_size, temporal_size, feature_size).cuda()
         while length_idx >= 0:
             sample_end = min(lengths[length_idx], sample_begin + step)
+            print(batch_size, sample_begin, sample_end)
 
             fuser_input = features[:batch_size, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
             attention_padding_masks = padding_masks[:batch_size, sample_begin: sample_end].view(-1, num_boxes)
