@@ -147,7 +147,7 @@ class EventDetection(nn.Module):
         batch_size, temporal_size, num_boxes, feature_size = features.size()
 
         # Fuse all agents together at every temporal point
-        fused_features = torch.empty(batch_size, temporal_size, feature_size)
+        fused_features = torch.empty(batch_size, temporal_size, feature_size).cuda()
         for sample_begin in range(0, features.size(1), self.agents_fuser_batch_size // batch_size):
             sample_end = min(features.size(1), sample_begin + self.agents_fuser_batch_size // batch_size)
 
