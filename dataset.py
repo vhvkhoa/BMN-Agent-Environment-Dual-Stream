@@ -27,6 +27,7 @@ def train_collate_fn(batch):
     end_labels = torch.stack(end_labels)
 
     batch_box_lengths = torch.stack(batch_box_lengths, dim=0)
+    print(batch_box_lengths)
 
     batch_size, max_temporal_dim = batch_box_lengths.size()
     max_box_dim = torch.max(batch_box_lengths).item()
