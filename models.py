@@ -144,6 +144,7 @@ class EventDetection(nn.Module):
         self.agents_environment_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
 
     def forward(self, env_features, env_padding_mask, agent_features, agent_padding_mask):
+        print(env_padding_mask)
         batch_size, temporal_size, num_boxes, feature_size = agent_features.size()
         print(agent_padding_mask.size())
         print(torch.sum(agent_padding_mask, dim=-1))
@@ -160,7 +161,6 @@ class EventDetection(nn.Module):
             fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask)
             if torch.sum(torch.isnan(fuser_output)).item() > 0:
                 print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
-                print(attention_padding_mask)
                 sys.exit()
             fuser_output = torch.mean(fuser_output, dim=0)
             fused_agent_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
