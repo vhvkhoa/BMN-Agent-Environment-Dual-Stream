@@ -145,6 +145,7 @@ class EventDetection(nn.Module):
 
     def forward(self, features, lengths, padding_masks):
         batch_size, temporal_size, num_boxes, feature_size = features.size()
+        print(batch_size, temporal_size, num_boxes, feature_size)
 
         length_idx, sample_begin = len(lengths) - 1, 0
         step = self.agents_fuser_batch_size // batch_size
