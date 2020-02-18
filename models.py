@@ -145,8 +145,6 @@ class EventDetection(nn.Module):
 
     def forward(self, features, lengths, padding_masks):
         batch_size, temporal_size, num_boxes, feature_size = features.size()
-        print(batch_size, temporal_size, num_boxes, feature_size)
-        print(lengths)
 
         length_idx, sample_begin = len(lengths) - 1, 0
         step = self.agents_fuser_batch_size // batch_size
@@ -155,11 +153,9 @@ class EventDetection(nn.Module):
         fused_features = torch.zeros(batch_size, temporal_size, feature_size).cuda()
         while length_idx >= 0:
             sample_end = min(lengths[length_idx], sample_begin + step)
-            print(batch_size, step, sample_begin, sample_end)
 
             fuser_input = features[:batch_size, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
             attention_padding_masks = padding_masks[:batch_size, sample_begin: sample_end].view(-1, num_boxes)
-            print(fuser_input.size())
 
             # *Temporally*, will fix later
             fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
@@ -169,7 +165,7 @@ class EventDetection(nn.Module):
             fuser_output = torch.mean(fuser_output, dim=0)
             fused_features[:batch_size, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
 
-            while sample_end == lengths[length_idx]:
+            while length_idx >= 0 and sample_end == lengths[length_idx]:
                 length_idx -= 1
                 batch_size -= 1
             sample_begin = sample_end
