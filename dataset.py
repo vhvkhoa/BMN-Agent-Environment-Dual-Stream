@@ -38,7 +38,7 @@ def train_collate_fn(batch):
     end_labels = torch.stack(end_labels)[sorted_by_length]
     batch_box_lengths = batch_box_lengths[sorted_by_length]
     batch_features = [batch_features[idx] for idx in sorted_by_length]
-    batch_lengths = batch_lengths[sorted_by_length]
+    batch_lengths = [batch_lengths[idx] for idx in sorted_by_length]
 
     # Make padding mask for self-attention
     batch_padding_mask = torch.arange(max_box_dim)[None, None, :] >= batch_box_lengths[:, :, None]
