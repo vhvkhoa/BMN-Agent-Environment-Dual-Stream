@@ -29,7 +29,7 @@ def train_collate_fn(batch):
     max_box_dim = torch.max(batch_box_lengths).item()
     feature_dim = len(batch_features[0][0][0])
 
-    batch_lengths = torch.sum(batch_box_lengths == 0, dim=-1).tolist()
+    batch_lengths = torch.sum(batch_box_lengths != 0, dim=-1).tolist()
     sorted_by_length = sorted(range(batch_size), key=lambda x: batch_lengths[x], reverse=True)
 
     # Reorder inputs by new indices
