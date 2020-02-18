@@ -29,7 +29,6 @@ def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
     for n_iter, (features, lengths, padding_masks, label_confidence, label_start, label_end) in enumerate(data_loader):
         features = features.cuda()
         padding_masks = padding_masks.cuda()
-        lengths = lengths.cuda()
         label_start = label_start.cuda()
         label_end = label_end.cuda()
         label_confidence = label_confidence.cuda()
