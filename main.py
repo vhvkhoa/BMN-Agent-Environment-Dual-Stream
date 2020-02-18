@@ -26,15 +26,14 @@ def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
     epoch_pemclr_loss = 0
     epoch_tem_loss = 0
     epoch_loss = 0
-    for n_iter, (env_features, env_padding_masks, agent_features, agent_padding_masks, label_confidence, label_start, label_end) in enumerate(data_loader):
-        env_features = env_features.cuda()
-        env_padding_masks = env_padding_masks.cuda()
-        agent_features = agent_features.cuda()
-        agent_padding_masks = agent_padding_masks.cuda()
+    for n_iter, (features, length_masks, padding_masks, label_confidence, label_start, label_end) in enumerate(data_loader):
+        features = features.cuda()
+        padding_masks = padding_masks.cuda()
+        length_masks = length_masks.cuda()
         label_start = label_start.cuda()
         label_end = label_end.cuda()
         label_confidence = label_confidence.cuda()
-        confidence_map, start, end = model(env_features, env_padding_masks, agent_features, agent_padding_masks)
+        confidence_map, start, end = model(features, length_masks, padding_masks)
         loss = bmn_loss_func(focal_loss, confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
         optimizer.zero_grad()
         loss[0].backward()

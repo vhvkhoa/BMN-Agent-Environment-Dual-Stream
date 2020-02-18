@@ -143,19 +143,16 @@ class EventDetection(nn.Module):
         self.agents_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
         self.agents_environment_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
 
-    def forward(self, env_features, env_padding_mask, agent_features, agent_padding_mask):
-        print(env_padding_mask)
-        batch_size, temporal_size, num_boxes, feature_size = agent_features.size()
-        print(agent_padding_mask.size())
-        print(torch.sum(agent_padding_mask, dim=-1))
+    def forward(self, features, length_mask, padding_mask):
+        batch_size, temporal_size, num_boxes, feature_size = features.size()
 
         # Fuse all agents together at every temporal point
-        fused_agent_features = torch.empty_like(env_features)
-        for sample_begin in range(0, agent_features.size(1), self.agents_fuser_batch_size // batch_size):
-            sample_end = min(agent_features.size(1), sample_begin + self.agents_fuser_batch_size // batch_size)
+        fused_features = torch.empty(batch_size, temporal_size, feature_size)
+        for sample_begin in range(0, features.size(1), self.agents_fuser_batch_size // batch_size):
+            sample_end = min(features.size(1), sample_begin + self.agents_fuser_batch_size // batch_size)
 
-            fuser_input = agent_features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
-            attention_padding_mask = agent_padding_mask[:, sample_begin: sample_end].view(-1, num_boxes)
+            fuser_input = features[:, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
+            attention_padding_mask = padding_mask[:, sample_begin: sample_end].view(-1, num_boxes)
 
             # *Temporally*, will fix later
             fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_mask)
@@ -163,27 +160,12 @@ class EventDetection(nn.Module):
                 print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
                 sys.exit()
             fuser_output = torch.mean(fuser_output, dim=0)
-            fused_agent_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
-        fused_agent_features = fused_agent_features.masked_fill(env_padding_mask, 0)
-
-        # Fuse agent context and environment context together at every temporal point
-        agent_environment_features = torch.cat([env_features, fused_agent_features], dim=2)
-        fused_context_features = torch.empty_like(env_features)
-        for sample_begin in range(0, agent_features.size(1), self.agents_environment_fuser_batch_size // batch_size):
-            sample_end = min(agent_features.size(1), sample_begin + self.agents_environment_fuser_batch_size // batch_size)
-
-            fuser_input = agent_environment_features[:, sample_begin: sample_end].view(-1, 2, feature_size).permute(1, 0, 2)
-
-            # *Temporally*, will fix later
-            fuser_output = torch.mean(self.agents_environment_fuser(fuser_input), dim=0)
-
-            fused_context_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
+            fused_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
+        fused_features = fused_features.masked_fill(length_mask, 0)
 
         # Event detection with context features
-        fused_context_features = fused_context_features.masked_fill(env_padding_mask, 0)
-        fused_context_features = fused_context_features.permute(0, 2, 1)
-        print(fused_context_features.size())
-        return self.event_detector(fused_context_features)
+        fused_features = fused_features.permute(0, 2, 1)
+        return self.event_detector(fused_features)
 
 
 class BoundaryMatchingNetwork(nn.Module):

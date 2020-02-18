@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-import sys
 import os
 import json
-import math
 
 import numpy as np
 
@@ -22,31 +20,29 @@ def load_json(file):
 
 
 def train_collate_fn(batch):
-    batch_env_features, batch_env_lengths, batch_agent_features, batch_agent_box_lengths, confidence_labels, start_labels, end_labels = zip(*batch)
+    batch_features, batch_box_lengths, confidence_labels, start_labels, end_labels = zip(*batch)
 
     confidence_labels = torch.stack(confidence_labels)
     start_labels = torch.stack(start_labels)
     end_labels = torch.stack(end_labels)
 
-    batch_env_lengths = torch.tensor(batch_env_lengths)
-    print(batch_env_lengths)
-    batch_agent_box_lengths = torch.stack(batch_agent_box_lengths, dim=0)
-    batch_env_features = torch.stack(batch_env_features, dim=0)
+    batch_box_lengths = torch.stack(batch_box_lengths, dim=0)
 
-    batch_size, max_temporal_dim, feature_dim = batch_env_features.size()
-    max_box_dim = torch.max(batch_agent_box_lengths).item()
+    batch_size, max_temporal_dim = batch_box_lengths.size()
+    max_box_dim = torch.max(batch_box_lengths).item()
+    feature_dim = batch_features.size(-1)
 
-    batch_env_padding_mask = (torch.arange(max_temporal_dim)[None, :] >= batch_env_lengths[:, None]).unsqueeze(-1)
-    batch_agent_padding_mask = torch.arange(max_box_dim)[None, None, :] >= batch_agent_box_lengths[:, :, None]
+    batch_padding_mask = torch.arange(max_box_dim)[None, None, :] >= batch_box_lengths[:, :, None]
+    batch_length_mask = (batch_box_lengths == 0)
 
     # Pad agent features at temporal and box dimension
-    padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
-    for i, temporal_features in enumerate(batch_agent_features):
+    padded_batch_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
+    for i, temporal_features in enumerate(batch_features):
         for j, box_features in enumerate(temporal_features):
             if len(box_features) > 0:
-                padded_batch_agent_features[i, j, :len(box_features)] = torch.tensor(box_features)
+                padded_batch_features[i, j, :len(box_features)] = torch.tensor(box_features)
 
-    return batch_env_features, batch_env_padding_mask, padded_batch_agent_features, batch_agent_padding_mask, confidence_labels, start_labels, end_labels
+    return padded_batch_features, batch_length_mask, batch_padding_mask, confidence_labels, start_labels, end_labels
 
 
 def test_collate_fn(batch):
@@ -141,12 +137,12 @@ class VideoDataSet(Dataset):
             print("Split: %s. Dataset size: %d" % (self.split, len(self.video_names)))
 
     def __getitem__(self, index):
-        env_features, env_length, agent_features, agent_box_lengths, feature_period = self._load_item(index)
+        merge_features, box_lengths, feature_period = self._load_item(index)
         if self.split == "train":
             match_score_start, match_score_end, confidence_score = self._get_train_label(index, feature_period)
-            return env_features, env_length, agent_features, agent_box_lengths, confidence_score, match_score_start, match_score_end
+            return merge_features, box_lengths, confidence_score, match_score_start, match_score_end
         else:
-            return index, env_features, agent_features, agent_box_lengths
+            return index, merge_features, box_lengths
 
     def _load_item(self, index):
         if self.split == 'train':
@@ -163,14 +159,15 @@ class VideoDataSet(Dataset):
         env_features = load_json(os.path.join(self.env_feature_dir, video_name + '.json'))['video_features']
         if self.split == 'train':
             env_features = env_features[start_idx:start_idx + self.temporal_dim]
-        env_segments = [feature['segment'] for feature in env_features]
-        env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
-        env_length = env_features.size(0)
+        env_segments = [env['segment'] for env in env_features]
+        env_features = [env['features'] for env in env_features]
+        # env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
+        # env_length = env_features.size(0)
 
         # Pad environment features if train
-        if self.split == 'train':
-            tmp_dim, feat_dim = env_features.size()
-            env_features = torch.cat([env_features, torch.zeros(self.temporal_dim - tmp_dim, feat_dim)], dim=0)
+        # if self.split == 'train':
+        #     tmp_dim, feat_dim = env_features.size()
+        #     env_features = torch.cat([env_features, torch.zeros(self.temporal_dim - tmp_dim, feat_dim)], dim=0)
 
         '''
         Read agents features at every timestamp
@@ -185,15 +182,21 @@ class VideoDataSet(Dataset):
         agent_segments = [feature['segment'] for feature in agent_features]
         agent_features = [feature['features'] for feature in agent_features]
 
-        # Create and pad agent_box_lengths if train
-        agent_box_lengths = torch.tensor([len(x) for x in agent_features])
-        if self.split == 'train':
-            agent_box_lengths = torch.cat([agent_box_lengths, torch.zeros(self.temporal_dim - len(agent_features)).long()], dim=0)
+        assert env_segments == agent_segments, 'Two streams must have same segments.'
 
-        assert env_segments == agent_segments, 'Two streams must have same paces.'
+        # Merge agent and environment features
+        merge_features = []
+        for env_feature, agent_feature in zip(env_features, agent_features):
+            merge_features.append(env_feature + agent_feature)
+
+        # Create and pad agent_box_lengths if train
+        box_lengths = torch.tensor([len(x) for x in merge_features])
+        if self.split == 'train':
+            box_lengths = torch.cat([box_lengths, torch.zeros(self.temporal_dim - len(merge_features)).long()], dim=0)
+
         begin_timestamp, end_timestamp = env_segments[0][0], env_segments[-1][-1]
 
-        return env_features, env_length, agent_features, agent_box_lengths, (begin_timestamp, end_timestamp)
+        return merge_features, box_lengths, (begin_timestamp, end_timestamp)
 
     def _get_train_label(self, index, period):
         video_name = self.period_indices[index]['video_name']
