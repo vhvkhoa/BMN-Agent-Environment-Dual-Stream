@@ -28,7 +28,7 @@ def train_collate_fn(batch):
     start_labels = torch.stack(start_labels)
     end_labels = torch.stack(end_labels)
 
-    batch_env_lengths = torch.stack(batch_env_lengths, dim=0)
+    batch_env_lengths = torch.tensor(batch_env_lengths, dim=0)
     batch_agent_box_lengths = torch.stack(batch_agent_box_lengths, dim=0)
     batch_env_features = torch.stack(batch_env_features, dim=0)
 
