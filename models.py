@@ -143,7 +143,7 @@ class EventDetection(nn.Module):
         self.agents_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
         self.agents_environment_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
 
-    def forward(self, env_features, agent_features, agent_padding_mask):
+    def forward(self, env_features, env_padding_mask, agent_features, agent_padding_mask):
         batch_size, temporal_size, num_boxes, feature_size = agent_features.size()
         print(agent_padding_mask.size())
         print(torch.sum(agent_padding_mask, dim=-1))
@@ -164,6 +164,7 @@ class EventDetection(nn.Module):
                 sys.exit()
             fuser_output = torch.mean(fuser_output, dim=0)
             fused_agent_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
+        fused_agent_features = fused_agent_features.masked_fill(env_padding_mask, 0)
 
         # Fuse agent context and environment context together at every temporal point
         agent_environment_features = torch.cat([env_features, fused_agent_features], dim=2)
@@ -179,6 +180,7 @@ class EventDetection(nn.Module):
             fused_context_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
 
         # Event detection with context features
+        fused_context_features = fused_context_features.masked_fill(env_padding_mask, 0)
         fused_context_features = fused_context_features.permute(0, 2, 1)
         print(fused_context_features.size())
         return self.event_detector(fused_context_features)

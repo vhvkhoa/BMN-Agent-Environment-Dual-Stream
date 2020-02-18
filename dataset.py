@@ -22,7 +22,7 @@ def load_json(file):
 
 
 def train_collate_fn(batch):
-    batch_env_features, batch_agent_features, batch_agent_box_lengths, confidence_labels, start_labels, end_labels = zip(*batch)
+    batch_env_features, batch_env_lengths, batch_agent_features, batch_agent_box_lengths, confidence_labels, start_labels, end_labels = zip(*batch)
 
     confidence_labels = torch.stack(confidence_labels)
     start_labels = torch.stack(start_labels)
@@ -34,6 +34,7 @@ def train_collate_fn(batch):
     batch_size, max_temporal_dim, feature_dim = batch_env_features.size()
     max_box_dim = torch.max(batch_agent_box_lengths).item()
 
+    batch_env_padding_mask = (torch.arange(max_temporal_dim)[None, :] >= batch_env_lengths[:, None]).unsqueeze(-1)
     batch_agent_padding_mask = torch.arange(max_box_dim)[None, None, :] >= batch_agent_box_lengths[:, :, None]
 
     # Pad agent features at temporal and box dimension
@@ -43,7 +44,7 @@ def train_collate_fn(batch):
             if len(box_features) > 0:
                 padded_batch_agent_features[i, j, :len(box_features)] = torch.tensor(box_features)
 
-    return batch_env_features, padded_batch_agent_features, batch_agent_padding_mask, confidence_labels, start_labels, end_labels
+    return batch_env_features, batch_env_padding_mask, padded_batch_agent_features, batch_agent_padding_mask, confidence_labels, start_labels, end_labels
 
 
 def test_collate_fn(batch):
@@ -138,10 +139,10 @@ class VideoDataSet(Dataset):
             print("Split: %s. Dataset size: %d" % (self.split, len(self.video_names)))
 
     def __getitem__(self, index):
-        env_features, agent_features, agent_box_lengths, feature_period = self._load_item(index)
+        env_features, env_length, agent_features, agent_box_lengths, feature_period = self._load_item(index)
         if self.split == "train":
             match_score_start, match_score_end, confidence_score = self._get_train_label(index, feature_period)
-            return env_features, agent_features, agent_box_lengths, confidence_score, match_score_start, match_score_end
+            return env_features, env_length, agent_features, agent_box_lengths, confidence_score, match_score_start, match_score_end
         else:
             return index, env_features, agent_features, agent_box_lengths
 
@@ -162,6 +163,7 @@ class VideoDataSet(Dataset):
             env_features = env_features[start_idx:start_idx + self.temporal_dim]
         env_segments = [feature['segment'] for feature in env_features]
         env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
+        env_length = env_features.size(0)
 
         # Pad environment features if train
         if self.split == 'train':
@@ -189,7 +191,7 @@ class VideoDataSet(Dataset):
         assert env_segments == agent_segments, 'Two streams must have same paces.'
         begin_timestamp, end_timestamp = env_segments[0][0], env_segments[-1][-1]
 
-        return env_features, agent_features, agent_box_lengths, (begin_timestamp, end_timestamp)
+        return env_features, env_length, agent_features, agent_box_lengths, (begin_timestamp, end_timestamp)
 
     def _get_train_label(self, index, period):
         video_name = self.period_indices[index]['video_name']
