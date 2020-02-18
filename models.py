@@ -161,7 +161,7 @@ class EventDetection(nn.Module):
                 sys.exit()
             fuser_output = torch.mean(fuser_output, dim=0)
             fused_features[:, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
-        fused_features = fused_features.masked_fill(length_mask.unsqueeze(-1), 0)
+        fused_features = fused_features.masked_fill(torch.unsqueeze(length_mask, -1), 0)
 
         # Event detection with context features
         fused_features = fused_features.permute(0, 2, 1)
