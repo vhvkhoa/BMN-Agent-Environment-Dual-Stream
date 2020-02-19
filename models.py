@@ -140,39 +140,55 @@ class EventDetection(nn.Module):
         self.agents_environment_fuser = TransformerEncoder(cfg.DATA.FEATURE_DIM)
         self.event_detector = BoundaryMatchingNetwork(cfg)
 
-        self.agents_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
-        self.agents_environment_fuser_batch_size = cfg.TRAIN.ATTENTION_BATCH_SIZE
+        self.attention_steps = cfg.TRAIN.ATTENTION_STEPS
 
-    def forward(self, features, lengths, padding_masks):
-        batch_size, temporal_size, num_boxes, feature_size = features.size()
-
-        length_idx, sample_begin = len(lengths) - 1, 0
-        step = self.agents_fuser_batch_size // batch_size
+    def forward(self, env_features, agent_features, lengths, env_masks, agent_masks):
+        print(agent_features.size(), env_features.size(), env_masks.size(), agent_masks.size())
+        bsz, tmprl_sz, n_boxes, ft_sz = agent_features.size()
+        step = self.attention_steps
 
         # Fuse all agents together at every temporal point
-        fused_features = torch.zeros(batch_size, temporal_size, feature_size).cuda()
-        while length_idx >= 0:
-            sample_end = min(lengths[length_idx], sample_begin + step)
+        len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
+        agent_fused_features = torch.zeros(tmp_bsz, tmprl_sz, ft_sz).cuda()
+        while len_idx >= 0:
+            smpl_end = min(lengths[len_idx], smpl_bgn + step)
 
-            fuser_input = features[:batch_size, sample_begin: sample_end].view(-1, num_boxes, feature_size).permute(1, 0, 2)
-            attention_padding_masks = padding_masks[:batch_size, sample_begin: sample_end].view(-1, num_boxes)
+            fuser_input = agent_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes, ft_sz).permute(1, 0, 2)
+            attention_padding_masks = agent_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes)
+            print(fuser_input.size(), attention_padding_masks.size())
 
-            # *Temporally*, will fix later
             fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
             if torch.sum(torch.isnan(fuser_output)).item() > 0:
                 print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
                 sys.exit()
             fuser_output = torch.mean(fuser_output, dim=0)
-            fused_features[:batch_size, sample_begin: sample_end] = fuser_output.view(batch_size, -1, feature_size)
+            agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = fuser_output.view(tmp_bsz, -1, ft_sz)
 
-            while length_idx >= 0 and sample_end == lengths[length_idx]:
-                length_idx -= 1
-                batch_size -= 1
-            sample_begin = sample_end
+            while len_idx >= 0 and smpl_end == lengths[len_idx]:
+                len_idx -= 1
+                tmp_bsz -= 1
+            smpl_bgn = smpl_end
 
-        # Event detection with context features
-        fused_features = fused_features.permute(0, 2, 1)
-        return self.event_detector(fused_features)
+        env_agent_cat_features = torch.stack([env_features, agent_fused_features], dim=1)
+
+        len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
+        context_features = torch.zeros(bsz, tmprl_sz, ft_sz).cuda()
+        while len_idx >= 0:
+            smpl_end = min(lengths[len_idx], smpl_bgn + step)
+
+            fuser_input = env_agent_cat_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, 2, ft_sz).permute(1, 0, 2)
+            attention_padding_masks = env_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, 2)
+
+            fuser_output = self.agents_environment_fuser(fuser_input, key_padding_mask=attention_padding_masks)
+            fuser_output = torch.mean(fuser_output, dim=0)
+            context_features[:tmp_bsz, smpl_bgn:smpl_end] = fuser_output.view(tmp_bsz, -1, ft_sz)
+
+            while len_idx >= 0 and smpl_end == lengths[len_idx]:
+                len_idx -= 1
+                tmp_bsz -= 1
+            smpl_bgn = smpl_end
+
+        return self.event_detector(context_features.permute(0, 2, 1))
 
 
 class BoundaryMatchingNetwork(nn.Module):

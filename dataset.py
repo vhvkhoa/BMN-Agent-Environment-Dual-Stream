@@ -20,14 +20,14 @@ def load_json(file):
 
 
 def train_collate_fn(batch):
-    batch_features, batch_box_lengths, confidence_labels, start_labels, end_labels = zip(*batch)
+    batch_env_features, batch_agent_features, batch_box_lengths, confidence_labels, start_labels, end_labels = zip(*batch)
 
     # Make new order to inputs by their lengths (long-to-short)
     batch_box_lengths = torch.stack(batch_box_lengths, dim=0)
 
-    batch_size, max_temporal_dim = batch_box_lengths.size()
     max_box_dim = torch.max(batch_box_lengths).item()
-    feature_dim = len(batch_features[0][0][0])
+    batch_size = len(batch_env_features)
+    max_temporal_dim, feature_dim = batch_env_features[0].size()
 
     batch_lengths = torch.sum(batch_box_lengths != 0, dim=-1).tolist()
     sorted_by_length = sorted(range(batch_size), key=lambda x: batch_lengths[x], reverse=True)
@@ -37,20 +37,22 @@ def train_collate_fn(batch):
     start_labels = torch.stack(start_labels)[sorted_by_length]
     end_labels = torch.stack(end_labels)[sorted_by_length]
     batch_box_lengths = batch_box_lengths[sorted_by_length]
-    batch_features = [batch_features[idx] for idx in sorted_by_length]
+    batch_env_features = torch.stack(batch_env_features)[sorted_by_length]
+    batch_agent_features = [batch_agent_features[idx] for idx in sorted_by_length]
     batch_lengths = [batch_lengths[idx] for idx in sorted_by_length]
 
     # Make padding mask for self-attention
-    batch_padding_mask = torch.arange(max_box_dim)[None, None, :] >= batch_box_lengths[:, :, None]
+    batch_agent_mask = torch.arange(max_box_dim)[None, None, :] >= batch_box_lengths[:, :, None]
+    batch_env_mask = torch.cat([torch.arange(max_temporal_dim)[None, :] > torch.tensor(batch_lengths)[:, None], batch_box_lengths > 0], dim=-1)
 
     # Pad agent features at temporal and box dimension
-    padded_batch_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
-    for i, temporal_features in enumerate(batch_features):
+    padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
+    for i, temporal_features in enumerate(batch_agent_features):
         for j, box_features in enumerate(temporal_features):
             if len(box_features) > 0:
-                padded_batch_features[i, j, :len(box_features)] = torch.tensor(box_features)
+                padded_batch_agent_features[i, j, :len(box_features)] = torch.tensor(box_features)
 
-    return padded_batch_features, batch_lengths, batch_padding_mask, confidence_labels, start_labels, end_labels
+    return batch_env_features, padded_batch_agent_features, batch_lengths, batch_env_mask, batch_agent_mask, confidence_labels, start_labels, end_labels
 
 
 def test_collate_fn(batch):
@@ -145,12 +147,12 @@ class VideoDataSet(Dataset):
             print("Split: %s. Dataset size: %d" % (self.split, len(self.video_names)))
 
     def __getitem__(self, index):
-        merge_features, box_lengths, feature_period = self._load_item(index)
+        env_features, agent_features, box_lengths, feature_period = self._load_item(index)
         if self.split == "train":
             match_score_start, match_score_end, confidence_score = self._get_train_label(index, feature_period)
-            return merge_features, box_lengths, confidence_score, match_score_start, match_score_end
+            return env_features, agent_features, box_lengths, confidence_score, match_score_start, match_score_end
         else:
-            return index, merge_features, box_lengths
+            return index, env_features, agent_features, box_lengths
 
     def _load_item(self, index):
         if self.split == 'train':
@@ -168,14 +170,12 @@ class VideoDataSet(Dataset):
         if self.split == 'train':
             env_features = env_features[start_idx:start_idx + self.temporal_dim]
         env_segments = [env['segment'] for env in env_features]
-        env_features = [env['features'] for env in env_features]
-        # env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
-        # env_length = env_features.size(0)
+        env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
 
         # Pad environment features if train
-        # if self.split == 'train':
-        #     tmp_dim, feat_dim = env_features.size()
-        #     env_features = torch.cat([env_features, torch.zeros(self.temporal_dim - tmp_dim, feat_dim)], dim=0)
+        if self.split == 'train':
+            tmp_dim, feat_dim = env_features.size()
+            env_features = torch.cat([env_features, torch.zeros(self.temporal_dim - tmp_dim, feat_dim)], dim=0)
 
         '''
         Read agents features at every timestamp
@@ -193,18 +193,17 @@ class VideoDataSet(Dataset):
         assert env_segments == agent_segments, 'Two streams must have same segments.'
 
         # Merge agent and environment features
-        merge_features = []
-        for env_feature, agent_feature in zip(env_features, agent_features):
-            merge_features.append(env_feature + agent_feature)
+        # merge_features = []
+        # for env_feature, agent_feature in zip(env_features, agent_features):
+        #     merge_features.append(env_feature + agent_feature)
 
         # Create and pad agent_box_lengths if train
-        box_lengths = torch.tensor([len(x) for x in merge_features])
+        box_lengths = torch.tensor([len(x) for x in env_features])
         if self.split == 'train':
-            box_lengths = torch.cat([box_lengths, torch.zeros(self.temporal_dim - len(merge_features)).long()], dim=0)
+            box_lengths = torch.cat([box_lengths, torch.zeros(self.temporal_dim - len(env_features)).long()], dim=0)
 
         begin_timestamp, end_timestamp = env_segments[0][0], env_segments[-1][-1]
-
-        return merge_features, box_lengths, (begin_timestamp, end_timestamp)
+        return env_features, agent_features, box_lengths, (begin_timestamp, end_timestamp)
 
     def _get_train_label(self, index, period):
         video_name = self.period_indices[index]['video_name']
