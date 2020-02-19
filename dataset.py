@@ -43,7 +43,13 @@ def train_collate_fn(batch):
 
     # Make padding mask for self-attention
     batch_agent_mask = torch.arange(max_box_dim)[None, None, :] >= batch_box_lengths[:, :, None]
-    batch_env_mask = torch.cat([torch.arange(max_temporal_dim)[None, :] > torch.tensor(batch_lengths)[:, None], batch_box_lengths > 0], dim=-1)
+    # print((torch.arange(max_temporal_dim)[None, :] > torch.tensor(batch_lengths)[:, None]).size())
+    batch_env_mask = torch.stack(
+        [
+            torch.arange(max_temporal_dim)[None, :] > torch.tensor(batch_lengths)[:, None],
+            batch_box_lengths > 0
+        ],
+        dim=-1)
 
     # Pad agent features at temporal and box dimension
     padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
@@ -198,9 +204,9 @@ class VideoDataSet(Dataset):
         #     merge_features.append(env_feature + agent_feature)
 
         # Create and pad agent_box_lengths if train
-        box_lengths = torch.tensor([len(x) for x in env_features])
+        box_lengths = torch.tensor([len(x) for x in agent_features])
         if self.split == 'train':
-            box_lengths = torch.cat([box_lengths, torch.zeros(self.temporal_dim - len(env_features)).long()], dim=0)
+            box_lengths = torch.cat([box_lengths, torch.zeros(self.temporal_dim - len(agent_features)).long()], dim=0)
 
         begin_timestamp, end_timestamp = env_segments[0][0], env_segments[-1][-1]
         return env_features, agent_features, box_lengths, (begin_timestamp, end_timestamp)

@@ -155,7 +155,6 @@ class EventDetection(nn.Module):
 
             fuser_input = agent_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes, ft_sz).permute(1, 0, 2)
             attention_padding_masks = agent_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes)
-            print(fuser_input.size(), attention_padding_masks.size())
 
             fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
             if torch.sum(torch.isnan(fuser_output)).item() > 0:
@@ -169,7 +168,7 @@ class EventDetection(nn.Module):
                 tmp_bsz -= 1
             smpl_bgn = smpl_end
 
-        env_agent_cat_features = torch.stack([env_features, agent_fused_features], dim=1)
+        env_agent_cat_features = torch.stack([env_features, agent_fused_features], dim=2)
 
         len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
         context_features = torch.zeros(bsz, tmprl_sz, ft_sz).cuda()
