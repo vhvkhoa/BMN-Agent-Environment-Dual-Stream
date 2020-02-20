@@ -157,8 +157,9 @@ class EventDetection(nn.Module):
             attention_padding_masks = agent_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes)
 
             empty_mask = torch.sum(attention_padding_masks, dim=-1) > 0
+            print(empty_mask)
+            print(torch.arange(attention_padding_masks.size(0)))
             empty_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)).cuda(), empty_mask)
-            print(empty_mask, attention_padding_masks.size())
             print(empty_indices)
 
             if len(empty_indices) > 0:
