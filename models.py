@@ -180,6 +180,8 @@ class EventDetection(nn.Module):
             smpl_bgn = smpl_end
 
         env_agent_cat_features = torch.stack([env_features, agent_fused_features], dim=2)
+        if torch.sum(torch.isinf(env_agent_cat_features)).item() > 0:
+            print('Inf problem, env_agent_cat_features')
 
         len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
         context_features = torch.zeros(bsz, tmprl_sz, ft_sz).cuda()
