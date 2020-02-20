@@ -156,12 +156,19 @@ class EventDetection(nn.Module):
             fuser_input = agent_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes, ft_sz).permute(1, 0, 2)
             attention_padding_masks = agent_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes)
 
-            fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
-            if torch.sum(torch.isnan(fuser_output)).item() > 0:
-                print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
-                sys.exit()
-            fuser_output = torch.mean(fuser_output, dim=0)
-            agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = fuser_output.view(tmp_bsz, -1, ft_sz)
+            selected_mask = torch.sum(attention_padding_masks, dim=-1) > 0
+            selected_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)), selected_mask)
+            fuser_input = fuser_input[selected_indices]
+            attention_padding_masks = attention_padding_masks[selected_indices]
+
+            if len(fuser_input) > 0:
+                padded_output = torch.zeros(tmp_bsz, smpl_end - smpl_bgn, ft_sz)
+                fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
+                if torch.sum(torch.isnan(fuser_output)).item() > 0:
+                    print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
+                    sys.exit()
+                padded_output[selected_indices] = torch.mean(fuser_output, dim=0)
+                agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output.view(tmp_bsz, -1, ft_sz)
 
             while len_idx >= 0 and smpl_end == lengths[len_idx]:
                 len_idx -= 1
