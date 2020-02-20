@@ -156,22 +156,21 @@ class EventDetection(nn.Module):
             fuser_input = agent_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes, ft_sz).permute(1, 0, 2)
             attention_padding_masks = agent_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes)
 
-            empty_mask = (torch.sum(~attention_padding_masks, dim=-1) > 0).cpu()
-            empty_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)), empty_mask).cuda()
+            keep_mask = (torch.sum(~attention_padding_masks, dim=-1) > 0)
+            keep_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)).cuda(), keep_mask)
 
-            if len(empty_indices) > 0:
-                fuser_input = fuser_input[empty_indices]
-                attention_padding_masks = attention_padding_masks[:, empty_indices]
+            if len(keep_indices) > 0:
+                fuser_input = fuser_input[:, keep_indices]
+                attention_padding_masks = attention_padding_masks[keep_indices]
 
                 padded_output = torch.zeros(tmp_bsz, smpl_end - smpl_bgn, ft_sz).cuda()
-                print(padded_output.size())
                 fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
-                print(fuser_input.size(), attention_padding_masks.size(), fuser_output.size())
                 if torch.sum(torch.isnan(fuser_output)).item() > 0:
                     print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
                     sys.exit()
-                padded_output[empty_indices] = torch.mean(fuser_output, dim=0)
-                agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output.view(tmp_bsz, -1, ft_sz)
+                fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(attention_padding_masks, dim=-1)
+                padded_output[keep_indices] = fuser_output.view(len(keep_indices), -1, ft_sz)
+                agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output
 
             while len_idx >= 0 and smpl_end == lengths[len_idx]:
                 len_idx -= 1
