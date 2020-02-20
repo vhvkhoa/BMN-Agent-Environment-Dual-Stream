@@ -196,7 +196,7 @@ class EventDetection(nn.Module):
                 print('Env fuse problem')
                 if torch.sum(torch.isnan(fuser_input)).item() > 0:
                     print('\tinput problem')
-                print(fuser_output.size(), fuser_input.size())
+                print(torch.sum(fuser_output, dim=-1), torch.sum(fuser_input, dim=-1))
                 sys.exit()
             context_features[:tmp_bsz, smpl_bgn:smpl_end] = fuser_output.view(tmp_bsz, -1, ft_sz)
 
