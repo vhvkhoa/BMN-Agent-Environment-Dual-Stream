@@ -173,6 +173,8 @@ class EventDetection(nn.Module):
                     sys.exit()
                 if torch.sum(torch.isinf(fuser_output)).item() > 0:
                     print('Agent fuse problem, inf')
+                    print(fuser_output.size(), fuser_input.size())
+                    print(attention_padding_masks)
                     print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
                     sys.exit()
                 padded_output[keep_indices] = fuser_output
