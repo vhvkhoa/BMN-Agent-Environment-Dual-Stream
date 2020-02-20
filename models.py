@@ -168,6 +168,7 @@ class EventDetection(nn.Module):
                 if torch.sum(torch.isnan(fuser_output)).item() > 0:
                     print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
                     sys.exit()
+                print(torch.sum(fuser_output, dim=0).size(), torch.sum(attention_padding_masks, dim=-1).size())
                 fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(attention_padding_masks, dim=-1)
                 padded_output[keep_indices] = fuser_output.view(len(keep_indices), -1, ft_sz)
                 agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output
