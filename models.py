@@ -180,7 +180,7 @@ class EventDetection(nn.Module):
                     if torch.sum(torch.isinf(fuser_input)).item() > 0:
                         print('input has inf')
                     print(torch.sum(torch.isinf(fuser_output), dim=-1))
-                    print(torch.sum(fuser_input, dim=-1))
+                    print(torch.sum(fuser_input, dim=-1).transpose(1,0))
                     sys.exit()
                 padded_output[keep_indices] = fuser_output
                 agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output.view(tmp_bsz, -1, ft_sz)
