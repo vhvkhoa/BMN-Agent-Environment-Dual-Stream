@@ -156,10 +156,10 @@ class EventDetection(nn.Module):
             fuser_input = agent_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes, ft_sz).permute(1, 0, 2)
             attention_padding_masks = agent_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes)
 
+            print(attention_padding_masks)
             empty_mask = torch.sum(attention_padding_masks, dim=-1) > 0
             print(empty_mask)
-            print(torch.arange(attention_padding_masks.size(0)))
-            empty_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)).cuda(), empty_mask)
+            empty_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)), empty_mask).cuda()
             print(empty_indices)
 
             if len(empty_indices) > 0:
