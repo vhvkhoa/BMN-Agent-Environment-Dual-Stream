@@ -166,18 +166,7 @@ class EventDetection(nn.Module):
 
                 padded_output = torch.zeros(tmp_bsz * (smpl_end - smpl_bgn), ft_sz).cuda()
                 fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
-                if torch.sum(torch.isnan(fuser_output)).item() > 0:
-                    print('Agent fuse problem, before, nan')
-                    print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
-                    sys.exit()
-                if torch.sum(torch.isinf(fuser_output)).item() > 0:
-                    print('Agent fuse problem, before, inf')
-                    print(fuser_output.size(), fuser_input.size())
-                    print(attention_padding_masks)
-                    print(torch.sum(torch.isinf(fuser_output), dim=-1))
-                    print(torch.sum(fuser_input, dim=-1).transpose(1,0))
-                    sys.exit()
-                fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(attention_padding_masks, dim=-1, keepdim=True)
+                fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(~attention_padding_masks, dim=-1, keepdim=True)
                 if torch.sum(torch.isnan(fuser_output)).item() > 0:
                     print('Agent fuse problem, after, nan')
                     print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
@@ -187,7 +176,7 @@ class EventDetection(nn.Module):
                     print(fuser_output.size(), fuser_input.size())
                     print(attention_padding_masks)
                     print(torch.sum(torch.isinf(fuser_output), dim=-1))
-                    print(torch.sum(fuser_input, dim=-1).transpose(1,0))
+                    print(torch.sum(fuser_input, dim=-1).transpose(1, 0))
                     sys.exit()
                 padded_output[keep_indices] = fuser_output
                 agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output.view(tmp_bsz, -1, ft_sz)
