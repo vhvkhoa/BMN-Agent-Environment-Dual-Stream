@@ -197,6 +197,8 @@ class EventDetection(nn.Module):
                 print(fuser_input)
                 if torch.sum(torch.isnan(fuser_input)).item() > 0:
                     print('\tinput problem')
+                if torch.sum(torch.isinf(fuser_input)).item() > 0:
+                    print('\tinput problem')
                 print(torch.sum(fuser_output, dim=-1))
                 print(torch.sum(fuser_input, dim=-1))
                 sys.exit()
