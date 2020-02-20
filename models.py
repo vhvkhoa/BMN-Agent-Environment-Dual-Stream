@@ -184,23 +184,19 @@ class EventDetection(nn.Module):
         len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
         context_features = torch.zeros(bsz, tmprl_sz, ft_sz).cuda()
 
-        if torch.sum(torch.isnan(env_agent_cat_features)).item() > 0:
-            print('context problem')
-            print(env_agent_cat_features.size())
-            sys.exit()
-
         while len_idx >= 0:
             smpl_end = min(lengths[len_idx], smpl_bgn + step)
 
             fuser_input = env_agent_cat_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, 2, ft_sz).permute(1, 0, 2)
             attention_padding_masks = env_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, 2)
-            print(attention_padding_masks)
 
             fuser_output = self.agents_environment_fuser(fuser_input, key_padding_mask=attention_padding_masks)
             fuser_output = torch.mean(fuser_output, dim=0)
             if torch.sum(torch.isnan(fuser_output)).item() > 0:
                 print('Env fuse problem')
-                print(fuser_output, fuser_input)
+                if torch.sum(torch.isnan(fuser_input)).item() > 0:
+                    print('\tinput problem')
+                print(fuser_output.size(), fuser_input.size())
                 sys.exit()
             context_features[:tmp_bsz, smpl_bgn:smpl_end] = fuser_output.view(tmp_bsz, -1, ft_sz)
 
