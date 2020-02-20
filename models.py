@@ -184,7 +184,11 @@ class EventDetection(nn.Module):
         len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
         context_features = torch.zeros(bsz, tmprl_sz, ft_sz).cuda()
 
-        print(env_agent_cat_features.size())
+        if torch.sum(torch.isnan(env_agent_cat_features)).item() > 0:
+            print('context problem')
+            print(env_agent_cat_features.size())
+            sys.exit()
+
         while len_idx >= 0:
             smpl_end = min(lengths[len_idx], smpl_bgn + step)
 
@@ -196,7 +200,7 @@ class EventDetection(nn.Module):
             fuser_output = torch.mean(fuser_output, dim=0)
             if torch.sum(torch.isnan(fuser_output)).item() > 0:
                 print('Env fuse problem')
-                print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
+                print(fuser_output, fuser_input)
                 sys.exit()
             context_features[:tmp_bsz, smpl_bgn:smpl_end] = fuser_output.view(tmp_bsz, -1, ft_sz)
 
