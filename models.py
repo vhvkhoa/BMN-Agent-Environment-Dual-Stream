@@ -184,6 +184,7 @@ class EventDetection(nn.Module):
         len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
         context_features = torch.zeros(bsz, tmprl_sz, ft_sz).cuda()
 
+        print(env_agent_cat_features.size())
         while len_idx >= 0:
             smpl_end = min(lengths[len_idx], smpl_bgn + step)
 
