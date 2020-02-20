@@ -160,6 +160,7 @@ class EventDetection(nn.Module):
             selected_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)).cuda(), selected_mask)
 
             if len(selected_indices) > 0:
+                print(fuser_input.size(), attention_padding_masks.size())
                 fuser_input = fuser_input[selected_indices]
                 attention_padding_masks = attention_padding_masks[selected_indices]
                 print(fuser_input.size(), attention_padding_masks.size())
