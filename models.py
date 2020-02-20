@@ -150,6 +150,7 @@ class EventDetection(nn.Module):
         # Fuse all agents together at every temporal point
         len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
         agent_fused_features = torch.zeros(tmp_bsz, tmprl_sz, ft_sz).cuda()
+
         while len_idx >= 0:
             smpl_end = min(lengths[len_idx], smpl_bgn + step)
 
@@ -182,11 +183,13 @@ class EventDetection(nn.Module):
 
         len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
         context_features = torch.zeros(bsz, tmprl_sz, ft_sz).cuda()
+
         while len_idx >= 0:
             smpl_end = min(lengths[len_idx], smpl_bgn + step)
 
             fuser_input = env_agent_cat_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, 2, ft_sz).permute(1, 0, 2)
             attention_padding_masks = env_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, 2)
+            print(fuser_input.size(), attention_padding_masks.size())
 
             fuser_output = self.agents_environment_fuser(fuser_input, key_padding_mask=attention_padding_masks)
             fuser_output = torch.mean(fuser_output, dim=0)
