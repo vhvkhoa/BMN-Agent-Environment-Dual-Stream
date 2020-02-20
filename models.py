@@ -158,7 +158,7 @@ class EventDetection(nn.Module):
 
             empty_mask = torch.sum(attention_padding_masks, dim=-1) > 0
             empty_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)).cuda(), empty_mask)
-            print(empty_mask)
+            print(empty_mask, attention_padding_masks.size())
             print(empty_indices)
 
             if len(empty_indices) > 0:
