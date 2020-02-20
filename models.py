@@ -165,11 +165,11 @@ class EventDetection(nn.Module):
 
                 padded_output = torch.zeros(tmp_bsz * (smpl_end - smpl_bgn), ft_sz).cuda()
                 fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
+                fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(attention_padding_masks, dim=-1, keepdim=True)
                 if torch.sum(torch.isnan(fuser_output)).item() > 0:
+                    print('Agent fuse problem')
                     print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
                     sys.exit()
-                fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(attention_padding_masks, dim=-1, keepdim=True)
-                print(fuser_output.size(), padded_output.size())
                 padded_output[keep_indices] = fuser_output
                 agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output.view(tmp_bsz, -1, ft_sz)
 
@@ -190,6 +190,10 @@ class EventDetection(nn.Module):
 
             fuser_output = self.agents_environment_fuser(fuser_input, key_padding_mask=attention_padding_masks)
             fuser_output = torch.mean(fuser_output, dim=0)
+            if torch.sum(torch.isnan(fuser_output)).item() > 0:
+                print('Env fuse problem')
+                print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
+                sys.exit()
             context_features[:tmp_bsz, smpl_bgn:smpl_end] = fuser_output.view(tmp_bsz, -1, ft_sz)
 
             while len_idx >= 0 and smpl_end == lengths[len_idx]:
