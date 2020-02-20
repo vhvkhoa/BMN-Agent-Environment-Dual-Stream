@@ -194,7 +194,7 @@ class EventDetection(nn.Module):
             fuser_output = torch.mean(fuser_output, dim=0)
             if torch.sum(torch.isnan(fuser_output)).item() > 0:
                 print('Env fuse problem')
-                print(torch.sum(torch.isnan(fuser_input)).item())
+                print(fuser_input)
                 if torch.sum(torch.isnan(fuser_input)).item() > 0:
                     print('\tinput problem')
                 print(torch.sum(fuser_output, dim=-1))
