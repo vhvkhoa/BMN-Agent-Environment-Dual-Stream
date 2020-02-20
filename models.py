@@ -175,7 +175,10 @@ class EventDetection(nn.Module):
                     print('Agent fuse problem, inf')
                     print(fuser_output.size(), fuser_input.size())
                     print(attention_padding_masks)
-                    print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
+                    if torch.sum(torch.isnan(fuser_input)).item() > 0:
+                        print('input has nan')
+                    if torch.sum(torch.isinf(fuser_input)).item() > 0:
+                        print('input has inf')
                     sys.exit()
                 padded_output[keep_indices] = fuser_output
                 agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output.view(tmp_bsz, -1, ft_sz)
