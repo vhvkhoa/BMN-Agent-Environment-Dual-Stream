@@ -40,7 +40,7 @@ def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
         loss[0].backward()
         optimizer.step()
 
-        print("Step %d:\n\tLoss: %f.\tTem Loss: %f.\tPem Cls Loss: %f." % (
+        print("Step %d:\tLoss: %f.\tTem Loss: %f.\tPem Cls Loss: %f." % (
             n_iter,
             loss[0].cpu().detach().numpy(),
             # loss[2].cpu().detach().numpy(),
