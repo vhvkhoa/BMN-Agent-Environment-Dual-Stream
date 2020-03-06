@@ -102,8 +102,8 @@ class VideoDataSet(Dataset):
 
         self.env_feature_dir = cfg.DATA.ENV_FEATURE_DIR
         self.agent_feature_dir = cfg.DATA.AGENT_FEATURE_DIR
-        self._get_dataset(cfg)
-
+        self.feature_lengths_path = cfg.DATA.FEATURE_LENGTHS_PATH
+        self._get_dataset()
 
     def _get_match_map(self):
         match_map = []
@@ -122,9 +122,23 @@ class VideoDataSet(Dataset):
         self.anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(self.temporal_dim)]
         self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_dim + 1)]
 
-    def _get_dataset(self, cfg):
+    def _get_dataset(self):
         annotations = load_json(self.video_anno_path)
         self.video_names = list(annotations.keys())
+
+        if os.path.isfile(self.feature_lengths_path):
+            feature_lengths = load_json(self.feature_lengths_path)
+        else:
+            feature_lengths = {}
+            for video_name in tqdm(self.video_names):
+                num_features = load_json(
+                    os.path.join(self.env_feature_dir, video_name + '.json')
+                )['num_features']
+                feature_lengths[video_name] = num_features
+
+            with open(self.feature_lengths_path, 'w') as f:
+                json.dump(feature_lengths, f)
+
         # Read event segments
         self.event_dict = {}
 
@@ -134,7 +148,7 @@ class VideoDataSet(Dataset):
         print('Reading dataset.')
         for video_name in tqdm(self.video_names):
             annotation = annotations[video_name]
-            num_features = load_json(os.path.join(cfg.DATA.ENV_FEATURE_DIR, video_name + '.json'))['num_features']
+            num_features = feature_lengths[video_name]
 
             self.event_dict[video_name] = {
                 'num_features': num_features,
