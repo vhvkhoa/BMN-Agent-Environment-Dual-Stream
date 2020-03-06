@@ -88,23 +88,22 @@ def test_collate_fn(batch):
 class VideoDataSet(Dataset):
     def __init__(self, cfg, split="train"):
         self.split = split
-        self.env_feature_dir = cfg.DATA.ENV_FEATURE_DIR
-        self.agent_feature_dir = cfg.DATA.AGENT_FEATURE_DIR
-        self.video_id_path = cfg.DATA.VIDEO_ID_FILE
-        self.video_anno_path = cfg.DATA.VIDEO_ANNOTATION_FILE
 
-        self.temporal_dim = cfg.DATA.TEMPORAL_DIM
-        self.temporal_gap = 1. / self.temporal_dim
-        self.temporal_step = int(0.5 * self.temporal_dim)
-
-        self.target_fps = cfg.DATA.TARGET_FPS
-        self.sampling_rate = cfg.DATA.SAMPLING_RATE
-
-        self._get_dataset(cfg)
-        self._get_match_map()
+        if split == 'train':
+            self.video_anno_path = cfg.TRAIN.VIDEO_ANNOTATION_FILE
+            self.temporal_dim = cfg.DATA.TEMPORAL_DIM
+            self.temporal_gap = 1. / self.temporal_dim
+            self.temporal_step = int(0.5 * self.temporal_dim)
+            self._get_match_map()
 
         if self.split != 'train':
+            self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
             self.temporal_dim = None
+
+        self.env_feature_dir = cfg.DATA.ENV_FEATURE_DIR
+        self.agent_feature_dir = cfg.DATA.AGENT_FEATURE_DIR
+        self._get_dataset(cfg)
+
 
     def _get_match_map(self):
         match_map = []
@@ -124,7 +123,6 @@ class VideoDataSet(Dataset):
         self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_dim + 1)]
 
     def _get_dataset(self, cfg):
-        # self.video_names = load_json(self.video_id_path)
         annotations = load_json(self.video_anno_path)
         self.video_names = list(annotations.keys())
         # Read event segments
