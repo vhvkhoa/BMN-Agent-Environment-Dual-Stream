@@ -13,10 +13,10 @@ _C.TRAIN.LR = 0.001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ""
 
 _C.DATA = CfgNode()
-_C.DATA.ENV_FEATURE_DIR = "../datasets/tmp_anet/env_features/"
-_C.DATA.AGENT_FEATURE_DIR = "../datasets/tmp_anet/agent_features/"
-_C.DATA.VIDEO_ID_FILE = "../datasets/tmp_anet/tmp_ids.json"
-_C.DATA.VIDEO_ANNOTATION_FILE = "../datasets/tmp_anet/tmp.json"
+_C.DATA.ENV_FEATURE_DIR = "../datasets/activitynet/env_features/"
+_C.DATA.AGENT_FEATURE_DIR = "../datasets/activitynet/agent_features/"
+_C.DATA.VIDEO_ID_FILE = "../datasets/activitynet/captions/train_ids.json"
+_C.DATA.VIDEO_ANNOTATION_FILE = "../datasets/activitynet/captions/train.json"
 _C.DATA.TEMPORAL_DIM = 100
 _C.DATA.FEATURE_DIM = 2304
 _C.DATA.TARGET_FPS = 30
