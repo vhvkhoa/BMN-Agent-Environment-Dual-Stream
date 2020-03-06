@@ -13,7 +13,7 @@ def load_json(file):
         return data
 
 
-def getDatasetDict(opt):
+def getDatasetDict(cfg):
     df = pd.read_csv(opt["video_info"])
     json_data = load_json(opt["video_anno"])
     database = json_data
@@ -74,14 +74,14 @@ def soft_nms(df, alpha, t1, t2):
     return newDf
 
 
-def video_post_process(opt, video_list, video_dict):
+def video_post_process(cfg, video_list, video_dict):
     for video_name in video_list:
         df = pd.read_csv("./output/BMN_results/" + video_name + ".csv")
 
         if len(df) > 1:
-            snms_alpha = opt["soft_nms_alpha"]
-            snms_t1 = opt["soft_nms_low_thres"]
-            snms_t2 = opt["soft_nms_high_thres"]
+            snms_alpha = cfg.BMN.POST_PROCESS.SOFT_NMS_ALPHA
+            snms_t1 = cfg.BMN.POST_PROCESS.SOFT_NMS_LOW_THRESHOLD
+            snms_t2 = cfg.BMN.POST_PROCESS.SOFT_NMS_HIGH_THRESHOLD
             df = soft_nms(df, snms_alpha, snms_t1, snms_t2)
 
         df = df.sort_values(by="score", ascending=False)
@@ -96,35 +96,33 @@ def video_post_process(opt, video_list, video_dict):
             tmp_proposal["segment"] = [max(0, df.xmin.values[j]) * video_duration,
                                        min(1, df.xmax.values[j]) * video_duration]
             proposal_list.append(tmp_proposal)
-        result_dict[video_name[2:]] = proposal_list
+        result_dict[video_name] = proposal_list
 
 
-def BMN_post_processing(opt):
-    video_dict = getDatasetDict(opt)
+def BMN_post_processing(cfg):
+    video_dict = getDatasetDict(cfg)
     video_list = list(video_dict.keys())  # [:100]
     global result_dict
     result_dict = mp.Manager().dict()
 
     num_videos = len(video_list)
-    num_videos_per_thread = num_videos // opt["post_process_thread"]
+    num_videos_per_thread = num_videos // cfg.BMN.POST_PROCESS.NUM_THREADS
     processes = []
-    for tid in range(opt["post_process_thread"] - 1):
+    for tid in range(cfg.BMN.POST_PROCESS.NUM_THREADS - 1):
         tmp_video_list = video_list[tid * num_videos_per_thread:(tid + 1) * num_videos_per_thread]
-        p = mp.Process(target=video_post_process, args=(opt, tmp_video_list, video_dict))
+        p = mp.Process(target=video_post_process, args=(cfg, tmp_video_list, video_dict))
         p.start()
         processes.append(p)
-    tmp_video_list = video_list[(opt["post_process_thread"] - 1) * num_videos_per_thread:]
-    p = mp.Process(target=video_post_process, args=(opt, tmp_video_list, video_dict))
+    tmp_video_list = video_list[(cfg.BMN.POST_PROCESS.NUM_THREADS - 1) * num_videos_per_thread:]
+    p = mp.Process(target=video_post_process, args=(cfg, tmp_video_list, video_dict))
     p.start()
     processes.append(p)
     for p in processes:
         p.join()
 
     result_dict = dict(result_dict)
-    output_dict = {"version": "VERSION 1.3", "results": result_dict, "external_data": {}}
-    outfile = open(opt["result_file"], "w")
-    json.dump(output_dict, outfile)
-    outfile.close()
+    with open(cfg.BMN.POST_PROCESS.RESULTS_FILE, "w") as f:
+        json.dump(result_dict, f)
 
 # opt = opts.parse_opt()
 # opt = vars(opt)
