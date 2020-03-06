@@ -151,40 +151,41 @@ class EventDetection(nn.Module):
         len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
         agent_fused_features = torch.zeros(tmp_bsz, tmprl_sz, ft_sz).cuda()
 
-        while len_idx >= 0:
-            smpl_end = min(lengths[len_idx], smpl_bgn + step)
+        if n_boxes > 0:
+            while len_idx >= 0:
+                smpl_end = min(lengths[len_idx], smpl_bgn + step)
 
-            fuser_input = agent_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes, ft_sz).permute(1, 0, 2)
-            attention_padding_masks = agent_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes)
+                fuser_input = agent_features[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes, ft_sz).permute(1, 0, 2)
+                attention_padding_masks = agent_masks[:tmp_bsz, smpl_bgn:smpl_end].view(-1, n_boxes)
 
-            keep_mask = (torch.sum(~attention_padding_masks, dim=-1) > 0)
-            keep_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)).cuda(), keep_mask)
+                keep_mask = (torch.sum(~attention_padding_masks, dim=-1) > 0)
+                keep_indices = torch.masked_select(torch.arange(attention_padding_masks.size(0)).cuda(), keep_mask)
 
-            if len(keep_indices) > 0:
-                fuser_input = fuser_input[:, keep_indices]
-                attention_padding_masks = attention_padding_masks[keep_indices]
+                if len(keep_indices) > 0:
+                    fuser_input = fuser_input[:, keep_indices]
+                    attention_padding_masks = attention_padding_masks[keep_indices]
 
-                padded_output = torch.zeros(tmp_bsz * (smpl_end - smpl_bgn), ft_sz).cuda()
-                fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
-                fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(~attention_padding_masks, dim=-1, keepdim=True)
-                if torch.sum(torch.isnan(fuser_output)).item() > 0:
-                    print('Agent fuse problem, after, nan')
-                    print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
-                    sys.exit()
-                if torch.sum(torch.isinf(fuser_output)).item() > 0:
-                    print('Agent fuse problem, after, inf')
-                    print(fuser_output.size(), fuser_input.size())
-                    print(attention_padding_masks)
-                    print(torch.sum(torch.isinf(fuser_output), dim=-1))
-                    print(torch.sum(fuser_input, dim=-1).transpose(1, 0))
-                    sys.exit()
-                padded_output[keep_indices] = fuser_output
-                agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output.view(tmp_bsz, -1, ft_sz)
+                    padded_output = torch.zeros(tmp_bsz * (smpl_end - smpl_bgn), ft_sz).cuda()
+                    fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
+                    fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(~attention_padding_masks, dim=-1, keepdim=True)
+                    if torch.sum(torch.isnan(fuser_output)).item() > 0:
+                        print('Agent fuse problem, after, nan')
+                        print(torch.mean(fuser_output, dim=-1), torch.mean(fuser_input, dim=-1).squeeze())
+                        sys.exit()
+                    if torch.sum(torch.isinf(fuser_output)).item() > 0:
+                        print('Agent fuse problem, after, inf')
+                        print(fuser_output.size(), fuser_input.size())
+                        print(attention_padding_masks)
+                        print(torch.sum(torch.isinf(fuser_output), dim=-1))
+                        print(torch.sum(fuser_input, dim=-1).transpose(1, 0))
+                        sys.exit()
+                    padded_output[keep_indices] = fuser_output
+                    agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output.view(tmp_bsz, -1, ft_sz)
 
-            while len_idx >= 0 and smpl_end == lengths[len_idx]:
-                len_idx -= 1
-                tmp_bsz -= 1
-            smpl_bgn = smpl_end
+                while len_idx >= 0 and smpl_end == lengths[len_idx]:
+                    len_idx -= 1
+                    tmp_bsz -= 1
+                smpl_bgn = smpl_end
 
         env_agent_cat_features = torch.stack([env_features, agent_fused_features], dim=2)
 
