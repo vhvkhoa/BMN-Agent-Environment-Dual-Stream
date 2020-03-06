@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import json
+from tqdm import tqdm
 
 import numpy as np
 
@@ -132,7 +133,8 @@ class VideoDataSet(Dataset):
         if self.split == 'train':
             self.period_indices = []
 
-        for video_name in self.video_names:
+        print('Reading dataset.')
+        for video_name in tqdm(self.video_names):
             annotation = annotations[video_name]
             num_features = load_json(os.path.join(cfg.DATA.ENV_FEATURE_DIR, video_name + '.json'))['num_features']
 
