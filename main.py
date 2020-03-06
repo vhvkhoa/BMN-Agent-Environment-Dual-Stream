@@ -63,8 +63,8 @@ def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
 def test_BMN(data_loader, model, epoch, bm_mask):
     model.eval()
     with torch.no_grad():
-        for idx, input_data in test_loader:
-            video_name = test_loader.dataset.video_list[idx[0]]
+        for idx, input_data in data_loader:
+            video_name = data_loader.dataset.video_list[idx[0]]
             input_data = input_data.cuda()
             confidence_map, start, end = model(input_data)
 
