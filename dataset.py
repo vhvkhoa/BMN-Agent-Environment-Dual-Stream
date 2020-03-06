@@ -123,8 +123,9 @@ class VideoDataSet(Dataset):
         self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_dim + 1)]
 
     def _get_dataset(self, cfg):
-        self.video_names = load_json(self.video_id_path)
+        # self.video_names = load_json(self.video_id_path)
         annotations = load_json(self.video_anno_path)
+        self.video_names = list(annotations.keys())
         # Read event segments
         self.event_dict = {}
 
