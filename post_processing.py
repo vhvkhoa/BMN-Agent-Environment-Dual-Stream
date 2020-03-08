@@ -15,17 +15,15 @@ def load_json(file):
 
 def getDatasetDict(cfg, split):
     if split == 'train':
-        anno_file = cfg.TRAIN.VIDEO_ANNOTATION_FILE
+        annotations = load_json(cfg.TRAIN.VIDEO_ANNOTATION_FILE)
+        feature_lengths = load_json(cfg.TRAIN.FEATURE_LENGTHS_PATH)
     elif split == 'val':
-        anno_file = cfg.VAL.VIDEO_ANNOTATION_FILE
+        annotations = load_json(cfg.VAL.VIDEO_ANNOTATION_FILE)
+        feature_lengths = load_json(cfg.VAL.FEATURE_LENGTHS_PATH)
 
-    annotations = load_json(anno_file)
-    feature_lengths = load_json(cfg.DATA.FEATURE_LENGTHS_PATH)
-
-    video_dict = {}
     for video_name in annotations.keys():
         annotations[video_name]['feature_frame'] = feature_lengths[video_name]
-    return video_dict
+    return annotations
 
 
 def soft_nms(df, alpha, t1, t2):

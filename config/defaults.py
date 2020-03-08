@@ -12,14 +12,15 @@ _C.TRAIN.ATTENTION_STEPS = 2
 _C.TRAIN.LR = 0.001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ""
 _C.TRAIN.VIDEO_ANNOTATION_FILE = "../datasets/activitynet/captions/train.json"
+_C.TRAIN.FEATURE_LENGTHS_PATH = "../datasets/activitynet/captions/train_feature_lengths.json"
 
 _C.VAL = CfgNode()
 _C.VAL.VIDEO_ANNOTATION_FILE = "../datasets/activitynet/captions/val_1.json"
+_C.VAL.FEATURE_LENGTHS_PATH = "../datasets/activitynet/captions/val_feature_lengths.json"
 
 _C.DATA = CfgNode()
 _C.DATA.ENV_FEATURE_DIR = "../datasets/activitynet/env_features/"
 _C.DATA.AGENT_FEATURE_DIR = "../datasets/activitynet/agent_features/"
-_C.DATA.FEATURE_LENGTHS_PATH = "../datasets/activitynet/captions/feature_lengths.json"
 _C.DATA.TEMPORAL_DIM = 100
 _C.DATA.FEATURE_DIM = 2304
 _C.DATA.TARGET_FPS = 30

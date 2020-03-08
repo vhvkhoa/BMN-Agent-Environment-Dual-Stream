@@ -104,6 +104,7 @@ class VideoDataSet(Dataset):
         self.split = split
 
         if split == 'train':
+            self.feature_lengths_path = cfg.TRAIN.FEATURE_LENGTHS_PATH
             self.video_anno_path = cfg.TRAIN.VIDEO_ANNOTATION_FILE
             self.temporal_dim = cfg.DATA.TEMPORAL_DIM
             self.temporal_gap = 1. / self.temporal_dim
@@ -111,12 +112,12 @@ class VideoDataSet(Dataset):
             self._get_match_map()
 
         if self.split == 'validation':
+            self.feature_lengths_path = cfg.VAL.FEATURE_LENGTHS_PATH
             self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
             self.temporal_dim = None
 
         self.env_feature_dir = cfg.DATA.ENV_FEATURE_DIR
         self.agent_feature_dir = cfg.DATA.AGENT_FEATURE_DIR
-        self.feature_lengths_path = cfg.DATA.FEATURE_LENGTHS_PATH
         self._get_dataset()
 
     def _get_match_map(self):
