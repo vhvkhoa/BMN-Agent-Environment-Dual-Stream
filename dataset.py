@@ -21,45 +21,44 @@ def load_json(file):
 
 
 def train_collate_fn(batch):
-    batch_env_features, batch_agent_features, batch_box_lengths, confidence_labels, start_labels, end_labels = zip(*batch)
+    b_env_feats, b_agent_feats, b_lens, b_box_lens, confidence_labels, start_labels, end_labels = zip(*batch)
 
     # Make new order to inputs by their lengths (long-to-short)
-    batch_box_lengths = torch.stack(batch_box_lengths, dim=0)
+    b_box_lens = torch.stack(b_box_lens, dim=0)
 
-    max_box_dim = torch.max(batch_box_lengths).item()
-    batch_size = len(batch_env_features)
-    max_temporal_dim, feature_dim = batch_env_features[0].size()
+    max_box_dim = torch.max(b_box_lens).item()
+    bsz = len(b_env_feats)
+    max_tmp_dim, feat_dim = b_env_feats[0].size()
 
-    batch_lengths = torch.sum(batch_box_lengths != 0, dim=-1).tolist()
-    sorted_by_length = sorted(range(batch_size), key=lambda x: batch_lengths[x], reverse=True)
+    len_descend = sorted(range(bsz), key=lambda x: b_lens[x], reverse=True)
 
     # Reorder inputs by new indices
-    confidence_labels = torch.stack(confidence_labels)[sorted_by_length]
-    start_labels = torch.stack(start_labels)[sorted_by_length]
-    end_labels = torch.stack(end_labels)[sorted_by_length]
-    batch_box_lengths = batch_box_lengths[sorted_by_length]
-    batch_env_features = torch.stack(batch_env_features)[sorted_by_length]
-    batch_agent_features = [batch_agent_features[idx] for idx in sorted_by_length]
-    batch_lengths = [batch_lengths[idx] for idx in sorted_by_length]
+    confidence_labels = torch.stack(confidence_labels)[len_descend]
+    start_labels = torch.stack(start_labels)[len_descend]
+    end_labels = torch.stack(end_labels)[len_descend]
+    b_box_lens = b_box_lens[len_descend]
+    b_env_feats = torch.stack(b_env_feats)[len_descend]
+    b_agent_feats = [b_agent_feats[idx] for idx in len_descend]
+    b_lens = [b_lens[idx] for idx in len_descend]
 
     # Make padding mask for self-attention
-    batch_agent_mask = torch.arange(max_box_dim)[None, None, :] >= batch_box_lengths[:, :, None]
+    b_agent_mask = torch.arange(max_box_dim)[None, None, :] >= b_box_lens[:, :, None]
     # print((torch.arange(max_temporal_dim)[None, :] > torch.tensor(batch_lengths)[:, None]).size())
-    batch_env_mask = torch.stack(
+    b_env_mask = torch.stack(
         [
-            torch.arange(max_temporal_dim)[None, :] > torch.tensor(batch_lengths)[:, None],
-            batch_box_lengths > 0
+            torch.arange(max_tmp_dim)[None, :] > torch.tensor(b_lens)[:, None],
+            b_box_lens > 0
         ],
         dim=-1)
 
     # Pad agent features at temporal and box dimension
-    padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
-    for i, temporal_features in enumerate(batch_agent_features):
+    pad_b_agent_feats = torch.zeros(bsz, max_tmp_dim, max_box_dim, feat_dim)
+    for i, temporal_features in enumerate(b_agent_feats):
         for j, box_features in enumerate(temporal_features):
             if len(box_features) > 0:
-                padded_batch_agent_features[i, j, :len(box_features)] = torch.tensor(box_features)
+                pad_b_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
 
-    return batch_env_features, padded_batch_agent_features, batch_lengths, batch_env_mask, batch_agent_mask, confidence_labels, start_labels, end_labels
+    return b_env_feats, pad_b_agent_feats, b_lens, b_env_mask, b_agent_mask, confidence_labels, start_labels, end_labels
 
 
 def test_collate_fn(batch):
@@ -168,12 +167,12 @@ class VideoDataSet(Dataset):
             print("Split: %s. Dataset size: %d" % (self.split, len(self.video_names)))
 
     def __getitem__(self, index):
-        env_features, agent_features, box_lengths, feature_period = self._load_item(index)
+        env_features, agent_features, env_length, box_lengths, feature_period = self._load_item(index)
         if self.split == "train":
             match_score_start, match_score_end, confidence_score = self._get_train_label(index, feature_period)
-            return env_features, agent_features, box_lengths, confidence_score, match_score_start, match_score_end
+            return env_features, agent_features, env_length, box_lengths, confidence_score, match_score_start, match_score_end
         else:
-            return index, env_features, agent_features, box_lengths
+            return index, env_features, agent_features, env_length, box_lengths
 
     def _load_item(self, index):
         if self.split == 'train':
@@ -192,6 +191,8 @@ class VideoDataSet(Dataset):
             env_features = env_features[start_idx:start_idx + self.temporal_dim]
         env_segments = [env['segment'] for env in env_features]
         env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
+
+        env_length = len(env_features)
 
         # Pad environment features if train
         if self.split == 'train':
@@ -224,7 +225,7 @@ class VideoDataSet(Dataset):
             box_lengths = torch.cat([box_lengths, torch.zeros(self.temporal_dim - len(agent_features)).long()], dim=0)
 
         begin_timestamp, end_timestamp = env_segments[0][0], env_segments[-1][-1]
-        return env_features, agent_features, box_lengths, (begin_timestamp, end_timestamp)
+        return env_features, agent_features, env_length, box_lengths, (begin_timestamp, end_timestamp)
 
     def _get_train_label(self, index, period):
         video_name = self.period_indices[index]['video_name']
