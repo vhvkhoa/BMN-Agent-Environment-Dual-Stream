@@ -185,6 +185,8 @@ class EventDetection(nn.Module):
         while len_idx >= 0:
             smpl_end = min(lengths[len_idx], smpl_bgn + step)
 
+            if smpl_bgn == smpl_end:
+                print(lengths[len_idx])
             fuser_input = env_agent_cat_features[:tmp_bsz, smpl_bgn:smpl_end].contiguous()
             fuser_input = fuser_input.view(-1, 2, ft_sz).permute(1, 0, 2)
             attention_padding_masks = env_masks[:tmp_bsz, smpl_bgn:smpl_end]
