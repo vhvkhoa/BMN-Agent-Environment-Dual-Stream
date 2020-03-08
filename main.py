@@ -60,13 +60,17 @@ def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
             epoch_loss / (n_iter + 1)))
 
 
-def test_BMN(data_loader, model, epoch, bm_mask):
+def test_BMN(data_loader, model, epoch):
     model.eval()
     with torch.no_grad():
-        for idx, input_data in data_loader:
-            video_name = data_loader.dataset.video_list[idx[0]]
-            input_data = input_data.cuda()
-            confidence_map, start, end = model(input_data)
+        for indices, env_features, agent_features, lengths, env_masks, agent_masks in data_loader:
+            video_name = data_loader.dataset.video_list[indices[0]]
+            env_features = env_features.cuda()
+            agent_features = agent_features.cuda()
+            env_masks = env_masks.cuda()
+            agent_masks = agent_masks.cuda()
+
+            confidence_map, start, end = model(env_features, agent_features, lengths, env_masks, agent_masks)
 
             # print(start.shape,end.shape,confidence_map.shape)
             start_scores = start[0].detach().cpu().numpy()
@@ -79,10 +83,10 @@ def test_BMN(data_loader, model, epoch, bm_mask):
 
             tscale = len(start_scores)
 
-            ####################################################################################################
+            #########################################################################
             # generate the set of start points and end points
             start_bins = np.zeros(tscale)
-            start_bins[0] = 1  # [1,0,0...,0,1] 首末两帧
+            start_bins[0] = 1  # [1,0,0...,0,1]
             for idx in range(1, tscale - 1):
                 if start_scores[idx] > start_scores[idx + 1] and start_scores[idx] > start_scores[idx - 1]:
                     start_bins[idx] = 1
@@ -96,10 +100,9 @@ def test_BMN(data_loader, model, epoch, bm_mask):
                     end_bins[idx] = 1
                 elif end_scores[idx] > (0.5 * max_end):
                     end_bins[idx] = 1
-            ########################################################################################################
+            #########################################################################
 
             #########################################################################
-            # 遍历起始分界点与结束分界点的组合
             new_props = []
             for idx in range(tscale):
                 for jdx in range(tscale):
@@ -126,13 +129,6 @@ def test_BMN(data_loader, model, epoch, bm_mask):
     print("Post processing finished")
     evaluation_proposal(cfg)
 
-    for indices, env_features, agent_features, agent_padding_masks in data_loader:
-        env_features = env_features.cuda()
-        agent_features = agent_features.cuda()
-        agent_padding_masks = agent_padding_masks.cuda()
-
-        confidence_map, start, end = model(env_features, agent_features, agent_padding_masks)
-
     state = {'epoch': epoch + 1,
              'state_dict': model.state_dict()}
     torch.save(state, opt["checkpoint_path"] + "/BMN_checkpoint.pth.tar")
@@ -149,16 +145,16 @@ def BMN_Train(cfg):
                                                batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                                num_workers=1, pin_memory=True, collate_fn=train_collate_fn)
 
-    #test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="validation"),
-    #                                          batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=False,
-    #                                          num_workers=1, pin_memory=True, collate_fn=test_collate_fn)
+    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="validation"),
+                                              batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=False,
+                                              num_workers=1, pin_memory=True, collate_fn=test_collate_fn)
 
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt["step_size"], gamma=opt["step_gamma"])
     bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
     for epoch in range(cfg.TRAIN.NUM_EPOCHS):
         train_BMN(train_loader, model, optimizer, epoch, focal_loss, bm_mask)
         scheduler.step()
-        # test_BMN(test_loader, model, epoch, bm_mask)
+        test_BMN(test_loader, model, epoch)
 
 
 def BMN_inference(cfg):

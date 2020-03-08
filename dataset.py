@@ -6,7 +6,6 @@ from tqdm import tqdm
 import numpy as np
 
 import torch
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data.dataset import Dataset
 
 from utils import ioa_with_anchors, iou_with_anchors
@@ -62,26 +61,42 @@ def train_collate_fn(batch):
 
 
 def test_collate_fn(batch):
-    indices, batch_env_features, batch_agent_features, batch_agent_box_lengths = zip(*batch)
+    video_names, b_env_feats, b_agent_feats, b_lens, b_box_lens = zip(*batch)
 
-    # Create agent feature padding mask
-    batch_agent_box_lengths = pad_sequence(batch_agent_box_lengths, batch_first=True)
-    max_box_dim = torch.max(batch_agent_box_lengths).item()
-    batch_agent_padding_mask = torch.arange(max_box_dim)[None, None, :] >= batch_agent_box_lengths[:, :, None]
+    # Make new order to inputs by their lengths (long-to-short)
+    b_box_lens = torch.stack(b_box_lens, dim=0)
 
-    # Pad environment features at temporal dimension
-    batch_env_features = pad_sequence(batch_env_features, batch_first=True)
+    max_box_dim = torch.max(b_box_lens).item()
+    bsz = len(b_env_feats)
+    max_tmp_dim, feat_dim = b_env_feats[0].size()
+
+    len_descend = sorted(range(bsz), key=lambda x: b_lens[x], reverse=True)
+
+    # Reorder inputs by new indices
+    video_names = [video_names[idx] for idx in len_descend]
+    b_box_lens = b_box_lens[len_descend]
+    b_env_feats = torch.stack(b_env_feats)[len_descend]
+    b_agent_feats = [b_agent_feats[idx] for idx in len_descend]
+    b_lens = [b_lens[idx] for idx in len_descend]
+
+    # Make padding mask for self-attention
+    b_agent_mask = torch.arange(max_box_dim)[None, None, :] >= b_box_lens[:, :, None]
+    # print((torch.arange(max_temporal_dim)[None, :] > torch.tensor(batch_lengths)[:, None]).size())
+    b_env_mask = torch.stack(
+        [
+            torch.arange(max_tmp_dim)[None, :] > torch.tensor(b_lens)[:, None],
+            b_box_lens > 0
+        ],
+        dim=-1)
 
     # Pad agent features at temporal and box dimension
-    batch_size, max_temporal_dim, feature_dim = batch_env_features.size()
-    padded_batch_agent_features = torch.zeros(batch_size, max_temporal_dim, max_box_dim, feature_dim)
-
-    for i, temporal_features in enumerate(batch_agent_features):
+    pad_b_agent_feats = torch.zeros(bsz, max_tmp_dim, max_box_dim, feat_dim)
+    for i, temporal_features in enumerate(b_agent_feats):
         for j, box_features in enumerate(temporal_features):
             if len(box_features) > 0:
-                padded_batch_agent_features[i, j, :len(box_features)] = torch.tensor(box_features)
+                pad_b_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
 
-    return indices, batch_env_features, padded_batch_agent_features, batch_agent_padding_mask
+    return video_names, b_env_feats, pad_b_agent_feats, b_lens, b_env_mask, b_agent_mask
 
 
 class VideoDataSet(Dataset):
@@ -95,7 +110,7 @@ class VideoDataSet(Dataset):
             self.temporal_step = int(0.5 * self.temporal_dim)
             self._get_match_map()
 
-        if self.split != 'train':
+        if self.split == 'validation':
             self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
             self.temporal_dim = None
 
@@ -172,7 +187,7 @@ class VideoDataSet(Dataset):
             match_score_start, match_score_end, confidence_score = self._get_train_label(index, feature_period)
             return env_features, agent_features, env_length, box_lengths, confidence_score, match_score_start, match_score_end
         else:
-            return index, env_features, agent_features, env_length, box_lengths
+            return self.video_names[index], env_features, agent_features, env_length, box_lengths
 
     def _load_item(self, index):
         if self.split == 'train':

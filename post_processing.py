@@ -13,22 +13,18 @@ def load_json(file):
         return data
 
 
-def getDatasetDict(cfg):
-    df = pd.read_csv(opt["video_info"])
-    json_data = load_json(opt["video_anno"])
-    database = json_data
+def getDatasetDict(cfg, split):
+    if split == 'train':
+        anno_file = cfg.TRAIN.VIDEO_ANNOTATION_FILE
+    elif split == 'val':
+        anno_file = cfg.VAL.VIDEO_ANNOTATION_FILE
+
+    annotations = load_json(anno_file)
+    feature_lengths = load_json(cfg.DATA.FEATURE_LENGTHS_PATH)
+
     video_dict = {}
-    for i in range(len(df)):
-        video_name = df.video.values[i]
-        video_info = database[video_name]
-        video_new_info = {}
-        video_new_info['duration_frame'] = video_info['duration_frame']
-        video_new_info['duration_second'] = video_info['duration_second']
-        video_new_info["feature_frame"] = video_info['feature_frame']
-        video_subset = df.subset.values[i]
-        video_new_info['annotations'] = video_info['annotations']
-        if video_subset == 'validation':
-            video_dict[video_name] = video_new_info
+    for video_name in annotations.keys():
+        annotations[video_name]['feature_frame'] = feature_lengths[video_name]
     return video_dict
 
 
@@ -86,8 +82,7 @@ def video_post_process(cfg, video_list, video_dict):
 
         df = df.sort_values(by="score", ascending=False)
         video_info = video_dict[video_name]
-        video_duration = float(video_info["duration_frame"] // 16 * 16) / video_info["duration_frame"] * video_info[
-            "duration_second"]
+        video_duration = video_info["feature_frame"] * 16 / 30
         proposal_list = []
 
         for j in range(min(100, len(df))):
