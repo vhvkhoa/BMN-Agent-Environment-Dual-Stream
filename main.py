@@ -1,6 +1,5 @@
 import sys
 import os
-import json
 
 import numpy as np
 import pandas as pd
@@ -59,7 +58,7 @@ def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
             epoch_loss / (n_iter + 1)))
 
 
-def test_BMN(data_loader, model, epoch):
+def test_BMN(cfg, data_loader, model, epoch):
     model.eval()
     with torch.no_grad():
         for indices, env_features, agent_features, lengths, env_masks, agent_masks in data_loader:
@@ -130,14 +129,13 @@ def test_BMN(data_loader, model, epoch):
 
     state = {'epoch': epoch + 1,
              'state_dict': model.state_dict()}
-    torch.save(state, opt["checkpoint_path"] + "/BMN_checkpoint.pth.tar")
+    torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "/BMN_checkpoint.pth.tar"))
 
 
 def BMN_Train(cfg):
     model = EventDetection(cfg)
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR,
-                           weight_decay=opt["weight_decay"])
+    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR)
     focal_loss = FocalLoss()
 
     train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="train"),
@@ -148,11 +146,9 @@ def BMN_Train(cfg):
                                               batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=False,
                                               num_workers=1, pin_memory=True, collate_fn=test_collate_fn)
 
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=opt["step_size"], gamma=opt["step_gamma"])
     bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
     for epoch in range(cfg.TRAIN.NUM_EPOCHS):
         train_BMN(train_loader, model, optimizer, epoch, focal_loss, bm_mask)
-        scheduler.step()
         test_BMN(test_loader, model, epoch)
 
 
