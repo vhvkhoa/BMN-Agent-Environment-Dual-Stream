@@ -12,7 +12,7 @@ from models import EventDetection
 from dataset import VideoDataSet, train_collate_fn, test_collate_fn
 from loss_function import FocalLoss, bmn_loss_func, get_mask
 from post_processing import BMN_post_processing
-from utils import evaluation_proposal
+from utils import evaluation
 
 from config.defaults import get_cfg
 
@@ -133,7 +133,7 @@ def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     print("Post processing start")
     BMN_post_processing(cfg)
     print("Post processing finished")
-    evaluation_proposal(cfg)
+    evaluation(cfg)
 
     with open(cfg.DATA.SCORE_PATH, 'r') as f:
         scores = json.load(f)
