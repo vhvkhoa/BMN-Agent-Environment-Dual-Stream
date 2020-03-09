@@ -8,7 +8,6 @@ import torch
 import torch.nn.parallel
 import torch.optim as optim
 
-import opts
 from models import EventDetection
 from dataset import VideoDataSet, train_collate_fn, test_collate_fn
 from loss_function import FocalLoss, bmn_loss_func, get_mask
@@ -241,18 +240,4 @@ def main(cfg):
 
 if __name__ == '__main__':
     cfg = get_cfg()
-    opt = opts.parse_opt()
-    opt = vars(opt)
-    if not os.path.exists(opt["checkpoint_path"]):
-        os.makedirs(opt["checkpoint_path"])
-    opt_file = open(opt["checkpoint_path"] + "/opts.json", "w")
-    json.dump(opt, opt_file)
-    opt_file.close()
-
-    # model = BMN(opt)
-    # a = torch.randn(1, 400, 100)
-    # b, c = model(a)
-    # print(b.shape, c.shape)
-    # print(b)
-    # print(c)
     main(cfg)
