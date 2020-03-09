@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from config.defaults import get_cfg
-from self_attention import ModifiedMultiheadAttention
 
 
 def _get_clones(module, N):
@@ -90,7 +89,7 @@ class TransformerEncoderLayer(nn.Module):
 
     def __init__(self, d_model, nhead, dim_feedforward=2048, dropout=0.1, activation="relu"):
         super(TransformerEncoderLayer, self).__init__()
-        self.self_attn = ModifiedMultiheadAttention(d_model, nhead, dropout=dropout)
+        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
         self.dropout = nn.Dropout(dropout)
