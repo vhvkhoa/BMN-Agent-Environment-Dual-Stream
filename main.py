@@ -69,8 +69,7 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_los
 def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     model.eval()
     with torch.no_grad():
-        for indices, env_features, agent_features, lengths, env_masks, agent_masks in data_loader:
-            video_name = data_loader.dataset.video_list[indices[0]]
+        for video_name, env_features, agent_features, lengths, env_masks, agent_masks in data_loader:
             env_features = env_features.cuda()
             agent_features = agent_features.cuda()
             env_masks = env_masks.cuda()
