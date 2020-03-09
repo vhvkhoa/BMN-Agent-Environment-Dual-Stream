@@ -1,4 +1,6 @@
 import numpy as np
+import subprocess
+import os
 
 
 def ioa_with_anchors(anchors_min, anchors_max, box_min, box_max):
@@ -25,5 +27,13 @@ def iou_with_anchors(anchors_min, anchors_max, box_min, box_max):
     return jaccard
 
 
-def evaluation(cfg):
-    return
+def evaluation_proposals(cfg):
+    python = '/home/nii/anaconda3/envs/py27/bin/python'
+    subprocess.call(' '.join([
+        'cd densevid_eval',
+        '&&',
+        python, 'evaluate.py',
+        '-s', os.path.abspath(cfg.DATA.RESULT_PATH),
+        '-o', os.path.abspath(cfg.SCORE_PATH),
+        '-d'
+    ]), shell=True)

@@ -5,34 +5,40 @@
 # Written by Ranjay Krishna
 # --------------------------------------------------------
 
+
+from sets import Set
+import numpy as np
 import argparse
 import json
 import random
 import string
+
 import sys
-sys.path.insert(0, './coco-caption') # Hack to allow the import of pycocoeval
+sys.path.insert(0, './coco-caption')  # Hack to allow the import of pycocoeval
 
 from pycocoevalcap.tokenizer.ptbtokenizer import PTBTokenizer
 from pycocoevalcap.bleu.bleu import Bleu
 from pycocoevalcap.meteor.meteor import Meteor
 from pycocoevalcap.rouge.rouge import Rouge
 from pycocoevalcap.cider.cider import Cider
-from sets import Set
-import numpy as np
+
 
 def random_string(string_length):
     letters = string.ascii_lowercase
-    return ''.join(random.choice(letters) for i in xrange(string_length))
+    return ''.join(random.choice(letters) for i in range(string_length))
+
 
 def remove_nonascii(text):
     return ''.join([i if ord(i) < 128 else ' ' for i in text])
+
 
 class ANETcaptions(object):
     PREDICTION_FIELDS = ['results', 'version', 'external_data']
 
     def __init__(self, ground_truth_filenames=None, prediction_filename=None,
                  tious=None, max_proposals=1000,
-                 prediction_fields=PREDICTION_FIELDS, verbose=False):
+                 prediction_fields=PREDICTION_FIELDS,
+                 verbose=False, detect_validate=True, caption_validate=True):
         # Check that the gt and submission files exist and load them
         if len(tious) == 0:
             raise IOError('Please input a valid tIoU.')
@@ -42,28 +48,33 @@ class ANETcaptions(object):
             raise IOError('Please input a valid prediction file.')
 
         self.verbose = verbose
+        self.detect_validate = detect_validate
+        self.caption_validate = caption_validate
         self.tious = tious
         self.max_proposals = max_proposals
         self.pred_fields = prediction_fields
         self.ground_truths = self.import_ground_truths(ground_truth_filenames)
         self.prediction = self.import_prediction(prediction_filename)
-        self.tokenizer = PTBTokenizer()
 
         # Set up scorers, if not verbose, we only use the one we're
         # testing on: METEOR
-        if self.verbose:
-            self.scorers = [
-                (Bleu(4), ["Bleu_1", "Bleu_2", "Bleu_3", "Bleu_4"]),
-                (Meteor(),"METEOR"),
-                (Rouge(), "ROUGE_L"),
-                (Cider(), "CIDEr")
-            ]
-        else:
-            self.scorers = [(Meteor(), "METEOR")]
+        if self.caption_validate:
+            self.tokenizer = PTBTokenizer()
+
+            if self.verbose:
+                self.scorers = [
+                    (Bleu(4), ['Bleu_1', 'Bleu_2', 'Bleu_3', 'Bleu_4']),
+                    (Meteor(), 'METEOR'),
+                    (Rouge(), 'ROUGE_L'),
+                    (Cider(), 'CIDEr')
+                ]
+
+            else:
+                self.scorers = [(Meteor(), 'METEOR')]
 
     def import_prediction(self, prediction_filename):
         if self.verbose:
-            print "| Loading submission..."
+            print('| Loading submission...')
         submission = json.load(open(prediction_filename))
         if not all([field in submission.keys() for field in self.pred_fields]):
             raise IOError('Please input a valid ground truth file.')
@@ -81,21 +92,21 @@ class ANETcaptions(object):
             self.n_ref_vids.update(gt.keys())
             gts.append(gt)
         if self.verbose:
-            print "| Loading GT. #files: %d, #videos: %d" % (len(filenames), len(self.n_ref_vids))
+            print('| Loading GT. #files: %d, #videos: %d' % (len(filenames), len(self.n_ref_vids)))
         return gts
 
     def iou(self, interval_1, interval_2):
         start_i, end_i = interval_1[0], interval_1[1]
         start, end = interval_2[0], interval_2[1]
         intersection = max(0, min(end, end_i) - max(start, start_i))
-        union = min(max(end, end_i) - min(start, start_i), end-start + end_i-start_i)
+        union = min(max(end, end_i) - min(start, start_i), end - start + end_i - start_i)
         iou = float(intersection) / (union + 1e-8)
         return iou
 
     def check_gt_exists(self, vid_id):
         for gt in self.ground_truths:
             if vid_id in gt:
-              return True
+                return True
         return False
 
     def get_gt_vid_ids(self):
@@ -105,17 +116,20 @@ class ANETcaptions(object):
         return list(vid_ids)
 
     def evaluate(self):
-        aggregator = {}
         self.scores = {}
-        for tiou in self.tious:
-            scores = self.evaluate_tiou(tiou)
-            for metric, score in scores.items():
-                if metric not in self.scores:
-                    self.scores[metric] = []
-                self.scores[metric].append(score)
-        if self.verbose:
+
+        if self.caption_validate:
+            for tiou in self.tious:
+                scores = self.evaluate_tiou(tiou)
+                for metric, score in scores.items():
+                    if metric not in self.scores:
+                        self.scores[metric] = []
+                    self.scores[metric].append(score)
+
+        if self.detect_validate:
             self.scores['Recall'] = []
             self.scores['Precision'] = []
+
             for tiou in self.tious:
                 precision, recall = self.evaluate_detection(tiou)
                 self.scores['Recall'].append(recall)
@@ -133,11 +147,10 @@ class ANETcaptions(object):
             for gt in self.ground_truths:
                 if vid_id not in gt:
                     continue
+
                 refs = gt[vid_id]
-                ref_set_covered = set([])
-                pred_set_covered = set([])
-                num_gt = 0
-                num_pred = 0
+                ref_set_covered = set()
+                pred_set_covered = set()
                 if vid_id in self.prediction:
                     for pred_i, pred in enumerate(self.prediction[vid_id]):
                         pred_timestamp = pred['timestamp']
@@ -146,7 +159,7 @@ class ANETcaptions(object):
                                 ref_set_covered.add(ref_i)
                                 pred_set_covered.add(pred_i)
 
-                    new_precision = float(len(pred_set_covered)) / (pred_i + 1) 
+                    new_precision = float(len(pred_set_covered)) / (pred_i + 1)
                     best_precision = max(best_precision, new_precision)
                 new_recall = float(len(ref_set_covered)) / len(refs['timestamps'])
                 best_recall = max(best_recall, new_recall)
@@ -155,22 +168,20 @@ class ANETcaptions(object):
         return sum(precision) / len(precision), sum(recall) / len(recall)
 
     def evaluate_tiou(self, tiou):
-        # This method averages the tIoU precision from METEOR, Bleu, etc. across videos 
+        # This method averages the tIoU precision from METEOR, Bleu, etc. across videos
         res = {}
         gts = {}
         gt_vid_ids = self.get_gt_vid_ids()
-        
+
         unique_index = 0
 
         # video id to unique caption ids mapping
         vid2capid = {}
-        
+
         cur_res = {}
         cur_gts = {}
-        
-        
+
         for vid_id in gt_vid_ids:
-            
             vid2capid[vid_id] = []
 
             # If the video does not have a prediction, then we give it no matches
@@ -208,20 +219,20 @@ class ANETcaptions(object):
         output = {}
         for scorer, method in self.scorers:
             if self.verbose:
-                print 'computing %s score...'%(scorer.method())
-            
+                print('computing %s score...' % (scorer.method()))
+
             # For each video, take all the valid pairs (based from tIoU) and compute the score
             all_scores = {}
-            
+
             # call tokenizer here for all predictions and gts
             tokenize_res = self.tokenizer.tokenize(cur_res)
             tokenize_gts = self.tokenizer.tokenize(cur_gts)
-            
+
             # reshape back
             for vid in vid2capid.keys():
-                res[vid] = {index:tokenize_res[index] for index in vid2capid[vid]}
-                gts[vid] = {index:tokenize_gts[index] for index in vid2capid[vid]}
-            
+                res[vid] = {index: tokenize_res[index] for index in vid2capid[vid]}
+                gts[vid] = {index: tokenize_gts[index] for index in vid2capid[vid]}
+
             for vid_id in gt_vid_ids:
 
                 if len(res[vid_id]) == 0 or len(gts[vid_id]) == 0:
@@ -233,18 +244,21 @@ class ANETcaptions(object):
                     score, scores = scorer.compute_score(gts[vid_id], res[vid_id])
                 all_scores[vid_id] = score
 
-            print all_scores.values()
+            print(all_scores.values())
             if type(method) == list:
                 scores = np.mean(all_scores.values(), axis=0)
-                for m in xrange(len(method)):
+                for m in range(len(method)):
                     output[method[m]] = scores[m]
                     if self.verbose:
-                        print "Calculated tIoU: %1.1f, %s: %0.3f" % (tiou, method[m], output[method[m]])
+                        print('Calculated tIoU: %1.1f, %s: %0.3f' % (tiou, method[m], output[method[m]]))
+
             else:
                 output[method] = np.mean(all_scores.values())
                 if self.verbose:
-                    print "Calculated tIoU: %1.1f, %s: %0.3f" % (tiou, method, output[method])
+                    print('Calculated tIoU: %1.1f, %s: %0.3f' % (tiou, method, output[method]))
+
         return output
+
 
 def main(args):
     # Call coco eval
@@ -256,35 +270,50 @@ def main(args):
     evaluator.evaluate()
 
     # Output the results
-    if args.verbose:
+    if args.caption_evaluation:
         for i, tiou in enumerate(args.tious):
-            print '-' * 80
-            print "tIoU: " , tiou
-            print '-' * 80
+            print('-' * 80)
+            print('tIoU: ', tiou)
+            print('-' * 80)
             for metric in evaluator.scores:
                 score = evaluator.scores[metric][i]
-                print '| %s: %2.4f'%(metric, 100*score)
+                print('| %s: %2.4f' % (metric, 100 * score))
 
-    # Print the averages
-    print '-' * 80
-    print "Average across all tIoUs"
-    print '-' * 80
-    for metric in evaluator.scores:
-        score = evaluator.scores[metric]
-        print '| %s: %2.4f'%(metric, 100 * sum(score) / float(len(score)))
+    if args.detection_evaluatoin:
+        # Print the averages
+        print('-' * 80)
+        print('Average across all tIoUs')
+        print('-' * 80)
+        for metric in evaluator.scores:
+            score = evaluator.scores[metric]
+            print('| %s: %2.4f' % (metric, 100 * sum(score) / float(len(score))))
 
-if __name__=='__main__':
+    if args.output != '':
+        with open(args.output, 'r') as f:
+            json.dump(evaluator.scores, f)
+
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Evaluate the results stored in a submissions file.')
-    parser.add_argument('-s', '--submission', type=str,  default='sample_submission.json',
+    parser.add_argument('-s', '--submission', type=str, default='sample_submission.json',
                         help='sample submission file for ActivityNet Captions Challenge.')
     parser.add_argument('-r', '--references', type=str, nargs='+', default=['data/val_1.json', 'data/val_2.json'],
                         help='reference files with ground truth captions to compare results against. delimited (,) str')
-    parser.add_argument('--tious', type=float,  nargs='+', default=[0.3, 0.5, 0.7, 0.9],
+    parser.add_argument('-o', '--output', type=str, default='',
+                        help='Path to output file for saving scores.')
+    parser.add_argument('--tious', type=float, nargs='+', default=[0.3, 0.5, 0.7, 0.9],
                         help='Choose the tIoUs to average over.')
     parser.add_argument('-ppv', '--max-proposals-per-video', type=int, default=1000,
                         help='maximum propoasls per video.')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Print intermediate steps.')
+    parser.add_argument('-c', '--caption-evaluation', dest='caption_evaluation',
+                        action='store_true',
+                        help='Evaluate captions.')
+    parser.add_argument('-d', '--detection-evaluation',
+                        dest='detection_evaluation',
+                        action='store_true',
+                        help='Evaluate detections.')
     args = parser.parse_args()
 
     main(args)

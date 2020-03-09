@@ -116,7 +116,3 @@ def BMN_post_processing(cfg):
     result_dict = dict(result_dict)
     with open(cfg.BMN.POST_PROCESS.RESULTS_FILE, "w") as f:
         json.dump(result_dict, f)
-
-# opt = opts.parse_opt()
-# opt = vars(opt)
-# BSN_post_processing(opt)

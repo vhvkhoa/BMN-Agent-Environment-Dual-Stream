@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 
 import numpy as np
 import pandas as pd
@@ -11,20 +12,20 @@ from models import EventDetection
 from dataset import VideoDataSet, train_collate_fn, test_collate_fn
 from loss_function import FocalLoss, bmn_loss_func, get_mask
 from post_processing import BMN_post_processing
-from eval import evaluation_proposal
+from utils import evaluation_proposal
 
 from config.defaults import get_cfg
 
 sys.dont_write_bytecode = True
 
 
-def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
+def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_loss, bm_mask):
     model.train()
     epoch_pemreg_loss = 0
     epoch_pemclr_loss = 0
     epoch_tem_loss = 0
     epoch_loss = 0
-    for n_iter, (env_features, agent_features, lengths, env_masks, agent_masks, label_confidence, label_start, label_end) in enumerate(data_loader):
+    for n_iter, (env_features, agent_features, lengths, env_masks, agent_masks, label_confidence, label_start, label_end) in enumerate(train_loader):
         env_features = env_features.cuda()
         agent_features = agent_features.cuda()
         env_masks = env_masks.cuda()
@@ -32,7 +33,9 @@ def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
         label_start = label_start.cuda()
         label_end = label_end.cuda()
         label_confidence = label_confidence.cuda()
+
         confidence_map, start, end = model(env_features, agent_features, lengths, env_masks, agent_masks)
+
         loss = bmn_loss_func(focal_loss, confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
         optimizer.zero_grad()
         loss[0].backward()
@@ -50,6 +53,9 @@ def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
         epoch_tem_loss += loss[1].cpu().detach().numpy()
         epoch_loss += loss[0].cpu().detach().numpy()
 
+        if n_iter % 1000 and n_iter != 0:
+            evaluate(cfg, test_loader, model, epoch, n_iter)
+
     print(
         "BMN training loss(epoch %d): tem_loss: %.03f, pem class_loss: %.03f, pem reg_loss: %.03f, total_loss: %.03f" % (
             epoch, epoch_tem_loss / (n_iter + 1),
@@ -57,8 +63,10 @@ def train_BMN(data_loader, model, optimizer, epoch, focal_loss, bm_mask):
             epoch_pemreg_loss / (n_iter + 1),
             epoch_loss / (n_iter + 1)))
 
+    evaluate(cfg, test_loader, model, epoch, n_iter)
 
-def test_BMN(cfg, data_loader, model, epoch):
+
+def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     model.eval()
     with torch.no_grad():
         for indices, env_features, agent_features, lengths, env_masks, agent_masks in data_loader:
@@ -127,9 +135,34 @@ def test_BMN(cfg, data_loader, model, epoch):
     print("Post processing finished")
     evaluation_proposal(cfg)
 
-    state = {'epoch': epoch + 1,
-             'state_dict': model.state_dict()}
-    torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "/BMN_checkpoint.pth.tar"))
+    with open(cfg.DATA.SCORE_PATH, 'r') as f:
+        scores = json.load(f)
+
+    if os.path.isfile(cfg.MODEL.BEST_RECORDS):
+        with open(cfg.MODEL.BEST_RECORDS, 'r') as f:
+            best_scores = json.load(f)
+
+        for metric, sub_scores in scores.items():
+            for i, score in enumerate(sub_scores):
+                if score > best_scores[metric][i]:
+                    state = {
+                        'epoch': epoch + 1,
+                        'iter': n_iter,
+                        'state_dict': model.state_dict()
+                    }
+                    torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "best_%s_%d.pth.tar" % (metric, i)))
+    else:
+        best_scores = scores
+
+    with open(cfg.MODEL.BEST_RECORDS, 'w') as f:
+        json.dump(best_scores, f)
+
+    state = {
+        'epoch': epoch + 1,
+        'iter': n_iter,
+        'state_dict': model.state_dict()
+    }
+    torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "model_%d_%d.pth.tar" % (epoch + 1, n_iter)))
 
 
 def BMN_Train(cfg):
@@ -148,8 +181,8 @@ def BMN_Train(cfg):
 
     bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
     for epoch in range(cfg.TRAIN.NUM_EPOCHS):
-        train_BMN(train_loader, model, optimizer, epoch, focal_loss, bm_mask)
-        test_BMN(test_loader, model, epoch)
+        train_BMN(train_loader, test_loader, model, optimizer, epoch, focal_loss, bm_mask)
+        evaluate(test_loader, model, epoch)
 
 
 def BMN_inference(cfg):
