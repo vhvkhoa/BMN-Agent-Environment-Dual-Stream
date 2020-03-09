@@ -12,7 +12,7 @@ from models import EventDetection
 from dataset import VideoDataSet, train_collate_fn, test_collate_fn
 from loss_function import FocalLoss, bmn_loss_func, get_mask
 from post_processing import BMN_post_processing
-from utils import evaluation
+from utils import evaluate_proposals
 
 from config.defaults import get_cfg
 
@@ -133,7 +133,7 @@ def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     print("Post processing start")
     BMN_post_processing(cfg)
     print("Post processing finished")
-    evaluation(cfg)
+    evaluate_proposals(cfg)
 
     with open(cfg.DATA.SCORE_PATH, 'r') as f:
         scores = json.load(f)
@@ -181,8 +181,7 @@ def BMN_Train(cfg):
 
     bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
     for epoch in range(cfg.TRAIN.NUM_EPOCHS):
-        train_BMN(train_loader, test_loader, model, optimizer, epoch, focal_loss, bm_mask)
-        evaluate(test_loader, model, epoch)
+        train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_loss, bm_mask)
 
 
 def BMN_inference(cfg):
@@ -264,7 +263,7 @@ def main(cfg):
         print("Post processing start")
         BMN_post_processing(cfg)
         print("Post processing finished")
-        evaluation_proposal(cfg)
+        evaluate_proposals(cfg)
 
 
 if __name__ == '__main__':
