@@ -27,7 +27,7 @@ def iou_with_anchors(anchors_min, anchors_max, box_min, box_max):
     return jaccard
 
 
-def evaluation_proposals(cfg):
+def evaluation(cfg):
     python = '/home/nii/anaconda3/envs/py27/bin/python'
     subprocess.call(' '.join([
         'cd densevid_eval',
