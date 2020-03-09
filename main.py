@@ -53,7 +53,7 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_los
         epoch_tem_loss += loss[1].cpu().detach().numpy()
         epoch_loss += loss[0].cpu().detach().numpy()
 
-        if n_iter % 1000 and n_iter != 0:
+        if n_iter % 1000 == 0 and n_iter != 0:
             evaluate(cfg, test_loader, model, epoch, n_iter)
 
     print(
