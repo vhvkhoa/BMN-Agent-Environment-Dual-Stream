@@ -23,3 +23,7 @@ def iou_with_anchors(anchors_min, anchors_max, box_min, box_max):
     # print inter_len,union_len
     jaccard = np.divide(inter_len, union_len)
     return jaccard
+
+
+def evaluation(cfg):
+    return
