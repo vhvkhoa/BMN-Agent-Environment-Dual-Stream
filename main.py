@@ -2,6 +2,7 @@ import sys
 import os
 import json
 
+from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import torch
@@ -53,7 +54,7 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_los
         epoch_tem_loss += loss[1].cpu().detach().numpy()
         epoch_loss += loss[0].cpu().detach().numpy()
 
-        if n_iter % 1000 == 0 and n_iter != 0:
+        if n_iter % 1000 == 0:  # and n_iter != 0:
             evaluate(cfg, test_loader, model, epoch, n_iter)
 
     print(
@@ -69,7 +70,8 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_los
 def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     model.eval()
     with torch.no_grad():
-        for video_name, env_features, agent_features, lengths, env_masks, agent_masks in data_loader:
+        for video_name, env_features, agent_features, lengths, env_masks, agent_masks in tqdm(data_loader):
+            video_name = video_name[0]
             env_features = env_features.cuda()
             agent_features = agent_features.cuda()
             env_masks = env_masks.cuda()
@@ -127,7 +129,7 @@ def evaluate(cfg, data_loader, model, epoch, n_iter=0):
 
             col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "clr_score", "reg_socre", "score"]
             new_df = pd.DataFrame(new_props, columns=col_name)
-            new_df.to_csv("./output/BMN_results/" + video_name + ".csv", index=False)
+            new_df.to_csv("./results/BMN_results/" + video_name + ".csv", index=False)
 
     print("Post processing start")
     BMN_post_processing(cfg)

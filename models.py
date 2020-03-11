@@ -215,7 +215,7 @@ class BoundaryMatchingNetwork(nn.Module):
         self.hidden_dim_2d = 128
         self.hidden_dim_3d = 512
 
-        self._get_interp1d_mask()
+        self.sample_mask = self._get_interp1d_mask(self.temporal_dim, self.num_sample, self.num_sample_perbin)
 
         # Base Module
         self.x_1d_b = nn.Sequential(
@@ -306,29 +306,29 @@ class BoundaryMatchingNetwork(nn.Module):
         p_mask = np.stack(p_mask, axis=1)
         return p_mask
 
-    def _get_interp1d_mask(self):
+    def _get_interp1d_mask(self, temporal_dim, num_sample, num_sample_perbin):
         # generate sample mask for each point in Boundary-Matching Map
         mask_mat = []
-        for start_index in range(self.temporal_dim):
+        for start_index in range(temporal_dim):
             mask_mat_vector = []
-            for duration_index in range(self.temporal_dim):
-                if start_index + duration_index < self.temporal_dim:
+            for duration_index in range(temporal_dim):
+                if start_index + duration_index < temporal_dim:
                     p_xmin = start_index
                     p_xmax = start_index + duration_index
                     center_len = float(p_xmax - p_xmin) + 1
                     sample_xmin = p_xmin - center_len * self.prop_boundary_ratio
                     sample_xmax = p_xmax + center_len * self.prop_boundary_ratio
                     p_mask = self._get_interp1d_bin_mask(
-                        sample_xmin, sample_xmax, self.temporal_dim, self.num_sample,
-                        self.num_sample_perbin)
+                        sample_xmin, sample_xmax, temporal_dim, num_sample,
+                        num_sample_perbin)
                 else:
-                    p_mask = np.zeros([self.temporal_dim, self.num_sample])
+                    p_mask = np.zeros([temporal_dim, num_sample])
                 mask_mat_vector.append(p_mask)
             mask_mat_vector = np.stack(mask_mat_vector, axis=2)
             mask_mat.append(mask_mat_vector)
         mask_mat = np.stack(mask_mat, axis=3)
         mask_mat = mask_mat.astype(np.float32)
-        self.sample_mask = nn.Parameter(torch.Tensor(mask_mat).view(self.temporal_dim, -1), requires_grad=False)
+        return nn.Parameter(torch.Tensor(mask_mat).view(temporal_dim, -1), requires_grad=False)
 
 
 if __name__ == '__main__':
