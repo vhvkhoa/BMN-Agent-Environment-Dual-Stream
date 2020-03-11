@@ -79,9 +79,9 @@ def evaluate(cfg, data_loader, model, epoch, n_iter=0):
             env_masks = env_masks.cuda()
             agent_masks = agent_masks.cuda()
 
-            confidence_map = np.zeros(1, 2, length, length)
-            start = np.zeros(1, length)
-            end = np.zeros(1, length)
+            confidence_map = np.zeros((1, 2, length, length))
+            start = np.zeros((1, length))
+            end = np.zeros((1, length))
 
             for start in range(0, length, temporal_dim):
                 end = start + temporal_dim
