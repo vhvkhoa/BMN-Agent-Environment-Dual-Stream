@@ -69,21 +69,38 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_los
 
 def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     model.eval()
+    temporal_dim = cfg.DATA.TEMPORAL_DIM
     with torch.no_grad():
         for video_name, env_features, agent_features, lengths, env_masks, agent_masks in tqdm(data_loader):
             video_name = video_name[0]
+            length = lengths[0]
             env_features = env_features.cuda()
             agent_features = agent_features.cuda()
             env_masks = env_masks.cuda()
             agent_masks = agent_masks.cuda()
 
-            confidence_map, start, end = model(env_features, agent_features, lengths, env_masks, agent_masks)
+            confidence_map = np.zeros(1, 2, length, length)
+            start = np.zeros(1, length)
+            end = np.zeros(1, length)
+
+            for start in range(0, length, temporal_dim):
+                end = start + temporal_dim
+
+                period_confidence_map, period_start, period_end = model(
+                    env_features[:, start:end],
+                    agent_features[:, start:end],
+                    lengths,
+                    env_masks[:, start:end],
+                    agent_masks[:, start:end])
+                confidence_map[:, :, start:end] = period_confidence_map.detach().cpu().numpy()
+                start[:, start:end] = period_start.detach().cpu().numpy()
+                end[:, start:end] = period_end.detach().cpu().numpy()
 
             # print(start.shape,end.shape,confidence_map.shape)
-            start_scores = start[0].detach().cpu().numpy()
-            end_scores = end[0].detach().cpu().numpy()
-            clr_confidence = (confidence_map[0][1]).detach().cpu().numpy()
-            reg_confidence = (confidence_map[0][0]).detach().cpu().numpy()
+            start_scores = start[0]
+            end_scores = end[0]
+            clr_confidence = (confidence_map[0][1])
+            reg_confidence = (confidence_map[0][0])
 
             max_start = max(start_scores)
             max_end = max(end_scores)
