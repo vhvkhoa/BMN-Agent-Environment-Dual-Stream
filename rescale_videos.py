@@ -60,12 +60,15 @@ if __name__ == '__main__':
 
             target_timestamps = np.linspace(0, num_frames - 1, target_n_frames)
             current_timestamp = 0
+            num_writen_frames = 0
             for timestamp in target_timestamps:
                 timestamp = round(timestamp)
                 while timestamp > current_timestamp:
                     _, frame = in_video.read()
                     current_timestamp += 1
                 out_video.write(frame)
+                num_writen_frames += 1
+
 
             current_time = time.time()
             pred_total_time = (current_time - start_time) / (i + 1) * len(filenames) - (current_time - start_time)
@@ -77,3 +80,6 @@ if __name__ == '__main__':
                 num_frames,
                 h, m, s)
             )
+
+            if num_writen_frames != target_n_frames:
+                print('Warning, number of frames writen not equals to 1600.')
