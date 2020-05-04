@@ -35,14 +35,12 @@ if __name__ == '__main__':
             target_video_path = os.path.join(output_root, os.path.relpath(root, video_root), filename)
 
             if os.path.isfile(target_video_path):
-                in_frames = cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FRAME_COUNT)
                 out_frames = cv2.VideoCapture(target_video_path).get(cv2.CAP_PROP_FRAME_COUNT)
-                if in_frames == out_frames:
-                    print('Detected %s. %d/%d. Frames: %d' % (
+                if out_frames == target_n_frames:
+                    print('Detected %s. %d/%d.' % (
                         video_path,
                         i + 1,
                         len(filenames),
-                        in_frames
                     ))
                     continue
 
