@@ -18,8 +18,6 @@ if __name__ == '__main__':
         for filename in tqdm.tqdm(filenames):
             video_path = os.path.join(root, filename)
             target_video_path = os.path.join(output_root, os.path.relpath(root, video_dir), filename)
-            video_path = 'v1-2/train/v_FCFSLuCZKj4.mp4'
-            target_video_path = 'rescaled/v1-2/train/v_FCFSLuCZKj4.mp4'
 
             in_video = cv2.VideoCapture(video_path)
             num_frames = in_video.get(cv2.CAP_PROP_FRAME_COUNT)
