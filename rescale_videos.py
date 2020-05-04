@@ -32,7 +32,11 @@ if __name__ == '__main__':
 
         for i, filename in enumerate(filenames):
             video_path = os.path.join(root, filename)
-            target_video_path = os.path.join(output_root, os.path.relpath(root, video_root), filename)
+            target_video_path = os.path.join(
+                output_root,
+                os.path.relpath(root, video_root),
+                os.path.splitext(filename)[0] + '.mp4'
+            )
 
             if os.path.isfile(target_video_path):
                 out_frames = cv2.VideoCapture(target_video_path).get(cv2.CAP_PROP_FRAME_COUNT)
