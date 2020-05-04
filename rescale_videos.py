@@ -38,6 +38,12 @@ if __name__ == '__main__':
                 in_frames = cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FRAME_COUNT)
                 out_frames = cv2.VideoCapture(target_video_path).get(cv2.CAP_PROP_FRAME_COUNT)
                 if in_frames == out_frames:
+                    print('Detected %s. %d/%d. Frames: %d' % (
+                        video_path,
+                        i + 1,
+                        len(filenames),
+                        in_frames
+                    ))
                     continue
 
             in_video = cv2.VideoCapture(video_path)
@@ -63,7 +69,8 @@ if __name__ == '__main__':
                     current_timestamp += 1
                 out_video.write(frame)
 
-            pred_total_time = (time.time() - start_time) / (len(filenames) - i - 1) * len(filenames)
+            current_time = time.time()
+            pred_total_time = (current_time - start_time) / (i + 1) * len(filenames) - (current_time - start_time)
             h, m, s = pred_total_time // 3600, (pred_total_time % 3600) // 60, (pred_total_time % 60)
             print('Processed: %s. %d/%d. Frames: %d. eta: %d hours, %d minutes, %d seconds.' % (
                 video_path,
