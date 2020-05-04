@@ -1,23 +1,47 @@
 import cv2
 import numpy as np
 import os
-import tqdm
+import time
+from argparse import ArgumentParser
 
 
 if __name__ == '__main__':
     target_n_frames = 16 * 100
-    video_dir = 'ActivityNetVideoData/'
-    output_root = 'RescaledVideoData/'
+    parser = ArgumentParser()
+    parser.add_argument(
+        '--video-root',
+        type=str,
+        default='ActivityNetVideoData/'
+    )
+    parser.add_argument(
+        '--output-root',
+        type=str,
+        default='RescaledVideoData/'
+    )
+    args = parser.parse_args()
 
-    for root, _, filenames in os.walk(video_dir):
-        dirname = os.path.join(output_root, os.path.relpath(root, video_dir))
+    video_root = args.video_root
+    output_root = args.output_root
+
+    for root, _, filenames in os.walk(video_root):
+        dirname = os.path.join(output_root, os.path.relpath(root, video_root))
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
 
-        print('Processing %s.' % dirname)
-        for filename in tqdm.tqdm(filenames):
+        start_time = time.time()
+
+        for i, filename in enumerate(filenames):
             video_path = os.path.join(root, filename)
-            target_video_path = os.path.join(output_root, os.path.relpath(root, video_dir), filename)
+            target_video_path = os.path.join(output_root, os.path.relpath(root, video_root), filename)
+
+            pred_total_time = (time.time() - start_time) / (i + 1) * len(filenames)
+            h, m, s = pred_total_time // 3600, (pred_total_time % 3600) // 60, (pred_total_time % 60)
+            print('Processing: %s. %d/%d. eta: %d hours, %d minutes, %d seconds.' % (
+                video_path,
+                i + 1,
+                len(filenames),
+                h, m, s)
+            )
 
             in_video = cv2.VideoCapture(video_path)
             num_frames = in_video.get(cv2.CAP_PROP_FRAME_COUNT)
