@@ -34,6 +34,12 @@ if __name__ == '__main__':
             video_path = os.path.join(root, filename)
             target_video_path = os.path.join(output_root, os.path.relpath(root, video_root), filename)
 
+            if os.path.isfile(target_video_path):
+                in_frames = cv2.VideoCapture(video_path).get(cv2.CAP_PROP_FRAME_COUNT)
+                out_frames = cv2.VideoCapture(target_video_path).get(cv2.CAP_PROP_FRAME_COUNT)
+                if in_frames == out_frames:
+                    continue
+
             in_video = cv2.VideoCapture(video_path)
             num_frames = in_video.get(cv2.CAP_PROP_FRAME_COUNT)
             width = int(in_video.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -57,7 +63,7 @@ if __name__ == '__main__':
                     current_timestamp += 1
                 out_video.write(frame)
 
-            pred_total_time = (time.time() - start_time) / (i + 1) * len(filenames)
+            pred_total_time = (time.time() - start_time) / (len(filenames) - i - 1) * len(filenames)
             h, m, s = pred_total_time // 3600, (pred_total_time % 3600) // 60, (pred_total_time % 60)
             print('Processed: %s. %d/%d. Frames: %d. eta: %d hours, %d minutes, %d seconds.' % (
                 video_path,
