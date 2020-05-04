@@ -10,6 +10,7 @@ if __name__ == '__main__':
     num_frames = in_video.get(cv2.CAP_PROP_FRAME_COUNT)
     width = int(in_video.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(in_video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    _, frame = in_video.read()
 
     out_video = cv2.VideoWriter(
         filename=target_video_path,
