@@ -8,7 +8,8 @@ if __name__ == '__main__':
 
     in_video = cv2.VideoCapture(video_path)
     num_frames = in_video.get(cv2.CAP_PROP_FRAME_COUNT)
-    width, height = in_video.get(cv2.CAP_PROP_FRAME_WIDTH), in_video.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    width = int(in_video.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(in_video.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     out_video = cv2.VideoWriter(
         filename=target_video_path,
