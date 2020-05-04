@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import os
+import tqdm
 
 
 if __name__ == '__main__':
@@ -13,7 +14,8 @@ if __name__ == '__main__':
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
 
-        for filename in filenames:
+        print('Processing %s.' % dirname)
+        for filename in tqdm(filenames):
             video_path = os.path.join(root, filename)
             target_video_path = os.path.join(output_root, os.path.relpath(root, video_dir), filename)
             video_path = 'v1-2/train/v_FCFSLuCZKj4.mp4'
