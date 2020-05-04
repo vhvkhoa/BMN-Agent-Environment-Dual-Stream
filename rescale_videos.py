@@ -69,7 +69,6 @@ if __name__ == '__main__':
                 out_video.write(frame)
                 num_writen_frames += 1
 
-
             current_time = time.time()
             pred_total_time = (current_time - start_time) / (i + 1) * len(filenames) - (current_time - start_time)
             h, m, s = pred_total_time // 3600, (pred_total_time % 3600) // 60, (pred_total_time % 60)
