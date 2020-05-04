@@ -15,7 +15,7 @@ if __name__ == '__main__':
             os.makedirs(dirname)
 
         print('Processing %s.' % dirname)
-        for filename in tqdm(filenames):
+        for filename in tqdm.tqdm(filenames):
             video_path = os.path.join(root, filename)
             target_video_path = os.path.join(output_root, os.path.relpath(root, video_dir), filename)
             video_path = 'v1-2/train/v_FCFSLuCZKj4.mp4'
