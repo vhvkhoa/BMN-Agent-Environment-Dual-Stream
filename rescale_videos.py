@@ -29,7 +29,7 @@ if __name__ == '__main__':
             os.makedirs(dirname)
 
         start_time = time.time()
-        n_processed = 0, len(filenames)
+        n_processed = 0
 
         for i, filename in enumerate(filenames):
             video_path = os.path.join(root, filename)
