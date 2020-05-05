@@ -56,7 +56,6 @@ if __name__ == '__main__':
             num_frames = in_video.get(cv2.CAP_PROP_FRAME_COUNT)
             width = int(in_video.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(in_video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            success, frame = in_video.read()
 
             out_video = cv2.VideoWriter(
                 filename=target_video_path,
@@ -67,25 +66,33 @@ if __name__ == '__main__':
             )
 
             target_timestamps = np.linspace(0, num_frames - 1, target_n_frames)
-            current_timestamp = 0
+            current_timestamp, target_idx = -1, 0
             num_fails = 0
-            for timestamp in target_timestamps:
-                timestamp = round(timestamp)
-                while (current_timestamp < timestamp or not success) and current_timestamp < num_frames:
+            while target_idx < len(target_timestamps):
+                timestamp = round(target_timestamps[target_idx])
+                while current_timestamp < timestamp:
                     success, frame = in_video.read()
                     current_timestamp += 1
                 if not success:
-                    num_fails += 1
+                    failed_timestamp = current_timestamp
+                    while not success and current_timestamp < num_frames:
+                        success, frame = in_video.read()
+                        current_timestamp += 1
+                    target_timestamps[target_idx:] = np.linspace(
+                        timestamp + current_timestamp - failed_timestamp,
+                        num_frames - 1,
+                        target_n_frames - target_idx
+                    )
                 out_video.write(frame)
+                target_idx += 1
 
             processed_time = time.time() - start_time
             pred_total_time = processed_time / n_processed * (len(filenames) - i - 1) - processed_time
             h, m, s = pred_total_time // 3600, (pred_total_time % 3600) // 60, (pred_total_time % 60)
-            print('Processed: %s. %d/%d. Fails/Frames: %d/%d. eta: %d hours, %d minutes, %d seconds.' % (
+            print('Processed: %s. %d/%d. Frames: %d. eta: %d hours, %d minutes, %d seconds.' % (
                 os.path.basename(video_path),
                 i + 1,
                 len(filenames),
-                num_fails,
                 num_frames,
                 h, m, s)
             )
