@@ -65,26 +65,18 @@ if __name__ == '__main__':
                 isColor=True
             )
 
-            target_timestamps = np.linspace(0, num_frames - 1, target_n_frames)
-            current_timestamp, target_idx = -1, 0
-            num_fails = 0
-            while target_idx < len(target_timestamps):
-                timestamp = round(target_timestamps[target_idx])
-                while current_timestamp < timestamp:
-                    success, frame = in_video.read()
-                    current_timestamp += 1
-                if not success:
-                    failed_timestamp = current_timestamp
-                    while not success and current_timestamp < num_frames:
-                        success, frame = in_video.read()
-                        current_timestamp += 1
-                    target_timestamps[target_idx:] = np.linspace(
-                        timestamp + current_timestamp - failed_timestamp,
-                        num_frames - 1,
-                        target_n_frames - target_idx
-                    )
+            in_frames = []
+            for _ in range(len(num_frames)):
+                success, frame = in_video.read()
+                if success:
+                    in_frames.append(frame)
+
+            target_timestamps = np.linspace(0, len(in_frames) - 1, target_n_frames)
+            for timestamp in target_timestamps:
+                timestamp = round(timestamp)
+                frame = in_frames[timestamp]
                 out_video.write(frame)
-                target_idx += 1
+
             in_video.release()
             out_video.release()
 
