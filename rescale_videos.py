@@ -53,7 +53,7 @@ if __name__ == '__main__':
             n_processed += 1
 
             in_video = cv2.VideoCapture(video_path)
-            num_frames = in_video.get(cv2.CAP_PROP_FRAME_COUNT)
+            num_frames = int(in_video.get(cv2.CAP_PROP_FRAME_COUNT))
             width = int(in_video.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(in_video.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
@@ -66,7 +66,7 @@ if __name__ == '__main__':
             )
 
             in_frames = []
-            for _ in range(len(num_frames)):
+            for _ in range(num_frames):
                 success, frame = in_video.read()
                 if success:
                     in_frames.append(frame)
