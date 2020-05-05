@@ -83,10 +83,11 @@ if __name__ == '__main__':
             processed_time = time.time() - start_time
             pred_total_time = processed_time / n_processed * (len(filenames) - i - 1) - processed_time
             h, m, s = pred_total_time // 3600, (pred_total_time % 3600) // 60, (pred_total_time % 60)
-            print('Processed: %s. %d/%d. Frames: %d. eta: %d hours, %d minutes, %d seconds.' % (
+            print('Processed: %s. %d/%d. In/Out frames: %d/. eta: %d hours, %d minutes, %d seconds.' % (
                 os.path.basename(video_path),
                 i + 1,
                 len(filenames),
+                len(in_frames),
                 int(cv2.VideoCapture(target_video_path).get(cv2.CAP_PROP_FRAME_COUNT)),
                 h, m, s)
             )
