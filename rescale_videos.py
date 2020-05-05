@@ -93,6 +93,6 @@ if __name__ == '__main__':
                 os.path.basename(video_path),
                 i + 1,
                 len(filenames),
-                num_frames,
+                int(cv2.VideoCapture(target_video_path).get(cv2.CAP_PROP_FRAME_COUNT)),
                 h, m, s)
             )
