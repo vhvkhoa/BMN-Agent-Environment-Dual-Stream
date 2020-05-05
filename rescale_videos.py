@@ -29,7 +29,7 @@ if __name__ == '__main__':
             os.makedirs(dirname)
 
         start_time = time.time()
-        n_processed, n_unprocessed = 0, len(filenames)
+        n_processed = 0, len(filenames)
 
         for i, filename in enumerate(filenames):
             video_path = os.path.join(root, filename)
@@ -42,12 +42,13 @@ if __name__ == '__main__':
             if os.path.isfile(target_video_path):
                 out_frames = cv2.VideoCapture(target_video_path).get(cv2.CAP_PROP_FRAME_COUNT)
                 if out_frames == target_n_frames:
+                    '''
                     print('Detected %s. %d/%d.' % (
-                        video_path,
+                        os.path.basename(video_path),
                         i + 1,
                         len(filenames),
                     ))
-                    n_unprocessed -= 1
+                    '''
                     continue
             n_processed += 1
 
@@ -70,7 +71,7 @@ if __name__ == '__main__':
             num_fails = 0
             for timestamp in target_timestamps:
                 timestamp = round(timestamp)
-                while timestamp > current_timestamp:
+                while (current_timestamp < timestamp or not success) and current_timestamp < num_frames:
                     success, frame = in_video.read()
                     current_timestamp += 1
                 if not success:
@@ -78,15 +79,13 @@ if __name__ == '__main__':
                 out_video.write(frame)
 
             processed_time = time.time() - start_time
-            pred_total_time = processed_time / n_processed * n_unprocessed - processed_time
+            pred_total_time = processed_time / n_processed * (len(filenames) - i - 1) - processed_time
             h, m, s = pred_total_time // 3600, (pred_total_time % 3600) // 60, (pred_total_time % 60)
-            print('Processed: %s. %d/%d. Frames: %d. eta: %d hours, %d minutes, %d seconds.' % (
-                video_path,
+            print('Processed: %s. %d/%d. Fails/Frames: %d/%d. eta: %d hours, %d minutes, %d seconds.' % (
+                os.path.basename(video_path),
                 i + 1,
                 len(filenames),
+                num_fails,
                 num_frames,
                 h, m, s)
             )
-
-            if num_fails > 0:
-                print('Warning, failed to write %d frames.' % num_fails)
