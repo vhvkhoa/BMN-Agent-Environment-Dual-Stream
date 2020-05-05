@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
             target_timestamps = np.linspace(0, len(in_frames) - 1, target_n_frames)
             for timestamp in target_timestamps:
-                timestamp = round(timestamp)
+                timestamp = int(round(timestamp))
                 frame = in_frames[timestamp]
                 out_video.write(frame)
 
