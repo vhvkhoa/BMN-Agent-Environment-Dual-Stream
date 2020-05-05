@@ -29,6 +29,7 @@ if __name__ == '__main__':
             os.makedirs(dirname)
 
         start_time = time.time()
+        n_processed, n_unprocessed = 0, len(filenames)
 
         for i, filename in enumerate(filenames):
             video_path = os.path.join(root, filename)
@@ -46,13 +47,15 @@ if __name__ == '__main__':
                         i + 1,
                         len(filenames),
                     ))
+                    n_unprocessed -= 1
                     continue
+            n_processed += 1
 
             in_video = cv2.VideoCapture(video_path)
             num_frames = in_video.get(cv2.CAP_PROP_FRAME_COUNT)
             width = int(in_video.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(in_video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            _, frame = in_video.read()
+            success, frame = in_video.read()
 
             out_video = cv2.VideoWriter(
                 filename=target_video_path,
@@ -64,17 +67,18 @@ if __name__ == '__main__':
 
             target_timestamps = np.linspace(0, num_frames - 1, target_n_frames)
             current_timestamp = 0
-            num_writen_frames = 0
+            num_fails = 0
             for timestamp in target_timestamps:
                 timestamp = round(timestamp)
                 while timestamp > current_timestamp:
-                    _, frame = in_video.read()
+                    success, frame = in_video.read()
                     current_timestamp += 1
+                if not success:
+                    num_fails += 1
                 out_video.write(frame)
-                num_writen_frames += 1
 
-            current_time = time.time()
-            pred_total_time = (current_time - start_time) / (i + 1) * len(filenames) - (current_time - start_time)
+            processed_time = time.time() - start_time
+            pred_total_time = processed_time / n_processed * n_unprocessed - processed_time
             h, m, s = pred_total_time // 3600, (pred_total_time % 3600) // 60, (pred_total_time % 60)
             print('Processed: %s. %d/%d. Frames: %d. eta: %d hours, %d minutes, %d seconds.' % (
                 video_path,
@@ -84,5 +88,5 @@ if __name__ == '__main__':
                 h, m, s)
             )
 
-            if num_writen_frames != target_n_frames:
-                print('Warning, number of frames writen not equals to 1600.')
+            if num_fails > 0:
+                print('Warning, failed to write %d frames.' % num_fails)
