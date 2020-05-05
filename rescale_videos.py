@@ -85,6 +85,8 @@ if __name__ == '__main__':
                     )
                 out_video.write(frame)
                 target_idx += 1
+            in_video.release()
+            out_video.release()
 
             processed_time = time.time() - start_time
             pred_total_time = processed_time / n_processed * (len(filenames) - i - 1) - processed_time
