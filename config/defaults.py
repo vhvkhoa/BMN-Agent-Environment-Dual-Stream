@@ -3,7 +3,7 @@ from fvcore.common.config import CfgNode
 
 _C = CfgNode()
 
-_C.MODE = 'train'
+_C.MODE = 'training'
 
 _C.TRAIN = CfgNode()
 _C.TRAIN.NUM_EPOCHS = 10
@@ -11,12 +11,13 @@ _C.TRAIN.BATCH_SIZE = 4
 _C.TRAIN.ATTENTION_STEPS = 2
 _C.TRAIN.LR = 0.001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ''
-_C.TRAIN.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/captions/train.json'
+_C.TRAIN.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/train.json'
 
 _C.VAL = CfgNode()
-_C.VAL.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/captions/val_1.json'
+_C.VAL.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/val_1.json'
 
 _C.DATA = CfgNode()
+_C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net_.v1-3.min.json'
 _C.DATA.ENV_FEATURE_DIR = '../datasets/activitynet/new_env_features/v1-3/train_val/'
 _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/new_agent_features/v1-3/train_val/'
 _C.DATA.RESULT_PATH = './results/results.json'

@@ -74,15 +74,16 @@ def test_collate_fn(batch):
 
 
 class VideoDataSet(Dataset):
-    def __init__(self, cfg, split="train"):
+    def __init__(self, cfg, split="training"):
         self.split = split
+        self.video_anno_path = cfg.TRAIN.VIDEO_ANNOTATION_FILE
 
         if split == 'train':
-            self.video_anno_path = cfg.TRAIN.VIDEO_ANNOTATION_FILE
+            # self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
             self._get_match_map()
 
-        if self.split == 'validation':
-            self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
+        # if self.split == 'validation':
+        #     self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
 
         self.temporal_dim = cfg.DATA.TEMPORAL_DIM
         self.temporal_gap = 1. / self.temporal_dim
@@ -108,7 +109,7 @@ class VideoDataSet(Dataset):
         self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_dim + 1)]
 
     def _get_dataset(self):
-        annotations = load_json(self.video_anno_path)
+        annotations = load_json(self.video_anno_path)['database']
         self.video_names = list(annotations.keys())
 
         # Read event segments
@@ -116,6 +117,8 @@ class VideoDataSet(Dataset):
 
         print('Reading dataset.')
         for video_name in tqdm(self.video_names):
+            if annotations[video_name]['subset'] != self.split:
+                continue
             annotation = annotations[video_name]
             self.event_dict[video_name] = {
                 'duration': annotation['duration'],
