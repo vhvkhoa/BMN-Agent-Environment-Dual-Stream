@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import json
-from tqdm import tqdm
 
 import numpy as np
 
@@ -110,21 +109,21 @@ class VideoDataSet(Dataset):
 
     def _get_dataset(self):
         annotations = load_json(self.video_anno_path)['database']
-        self.video_names = list(annotations.keys())
 
         # Read event segments
         self.event_dict = {}
+        self.video_names = []
 
         print('Reading dataset.')
-        for video_name in tqdm(self.video_names):
-            if annotations[video_name]['subset'] != self.split:
+        for video_name, annotation in annotations.values():
+            if annotation['subset'] != self.split:
                 continue
-            annotation = annotations[video_name]
             self.event_dict[video_name] = {
                 'duration': annotation['duration'],
                 'events': annotation['annotations']
                 # 'events': annotation['timestamps']
             }
+            self.video_names.append(video_name)
 
         print("Split: %s. Dataset size: %d" % (self.split, len(self.video_names)))
 
