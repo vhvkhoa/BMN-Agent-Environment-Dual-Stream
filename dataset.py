@@ -114,7 +114,7 @@ class VideoDataSet(Dataset):
         self.event_dict = {}
         self.video_names = []
 
-        for video_name, annotation in annotations.values():
+        for video_name, annotation in annotations.items():
             if annotation['subset'] != self.split:
                 continue
             self.event_dict[video_name] = {
