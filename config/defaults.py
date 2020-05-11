@@ -17,7 +17,7 @@ _C.VAL = CfgNode()
 _C.VAL.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/val_1.json'
 
 _C.DATA = CfgNode()
-_C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net_.v1-3.min.json'
+_C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
 _C.DATA.ENV_FEATURE_DIR = '../datasets/activitynet/new_env_features/v1-3/train_val/'
 _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/new_agent_features/v1-3/train_val/'
 _C.DATA.RESULT_PATH = './results/results.json'
