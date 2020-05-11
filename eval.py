@@ -57,7 +57,7 @@ def plot_metric(cfg, average_nr_proposals, average_recall, recall, tiou_threshol
     plt.savefig(cfg.DATA.FIGURE_PATH)
 
 
-def evaluate_proposal(cfg):
+def evaluate_proposals(cfg):
     uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid = run_evaluation(
         cfg.VAL.VIDEO_ANNOTATION_FILE,
         cfg.DATA.RESULT_PATH,
