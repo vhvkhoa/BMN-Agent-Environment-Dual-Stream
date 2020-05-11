@@ -22,6 +22,7 @@ _C.DATA = CfgNode()
 _C.DATA.ENV_FEATURE_DIR = '../datasets/activitynet/env_features/'
 _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/agent_features/'
 _C.DATA.RESULT_PATH = './results/results.json'
+_C.DATA.FIGURE_PATH = './results/result_figure.jpg'
 _C.DATA.SCORE_PATH = './results/scores.json'
 _C.DATA.TEMPORAL_DIM = 100
 _C.DATA.FEATURE_DIM = 2304

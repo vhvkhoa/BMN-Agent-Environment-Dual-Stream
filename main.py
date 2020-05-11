@@ -11,33 +11,33 @@ import torch.optim as optim
 
 from models import EventDetection
 from dataset import VideoDataSet, train_collate_fn, test_collate_fn
-from loss_function import FocalLoss, bmn_loss_func, get_mask
+from loss_function import bmn_loss_func, get_mask
 from post_processing import BMN_post_processing
-from utils import evaluate_proposals
+# from utils import evaluate_proposals
+from eval import evaluate_proposals
 
 from config.defaults import get_cfg
 
 sys.dont_write_bytecode = True
 
 
-def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_loss, bm_mask):
+def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask):
     model.train()
     epoch_pemreg_loss = 0
     epoch_pemclr_loss = 0
     epoch_tem_loss = 0
     epoch_loss = 0
-    for n_iter, (env_features, agent_features, lengths, env_masks, agent_masks, label_confidence, label_start, label_end) in enumerate(train_loader):
+    for n_iter, (env_features, agent_features, agent_masks, label_confidence, label_start, label_end) in enumerate(train_loader):
         env_features = env_features.cuda()
         agent_features = agent_features.cuda()
-        env_masks = env_masks.cuda()
         agent_masks = agent_masks.cuda()
         label_start = label_start.cuda()
         label_end = label_end.cuda()
         label_confidence = label_confidence.cuda()
 
-        confidence_map, start, end = model(env_features, agent_features, lengths, env_masks, agent_masks)
+        confidence_map, start, end = model(env_features, agent_features, agent_masks)
 
-        loss = bmn_loss_func(focal_loss, confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
+        loss = bmn_loss_func(confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
         optimizer.zero_grad()
         loss[0].backward()
         optimizer.step()
@@ -45,14 +45,15 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_los
         print("Step %d:\tLoss: %f.\tTem Loss: %f.\tPem Cls Loss: %f." % (
             n_iter,
             loss[0].cpu().detach().numpy(),
-            # loss[2].cpu().detach().numpy(),
             loss[1].cpu().detach().numpy(),
-            loss[2].cpu().detach().numpy()))
+            loss[2].cpu().detach().numpy(),
+            loss[3].cpu().detach().numpy(),
+        ))
 
-        # epoch_pemreg_loss += loss[2].cpu().detach().numpy()
-        epoch_pemclr_loss += loss[2].cpu().detach().numpy()
-        epoch_tem_loss += loss[1].cpu().detach().numpy()
         epoch_loss += loss[0].cpu().detach().numpy()
+        epoch_tem_loss += loss[1].cpu().detach().numpy()
+        epoch_pemclr_loss += loss[2].cpu().detach().numpy()
+        epoch_pemreg_loss += loss[3].cpu().detach().numpy()
 
         if n_iter % 1000 == 0:  # and n_iter != 0:
             evaluate(cfg, test_loader, model, epoch, n_iter)
@@ -69,32 +70,22 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_los
 
 def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     model.eval()
-    temporal_dim = cfg.DATA.TEMPORAL_DIM
     with torch.no_grad():
-        for video_name, env_features, agent_features, lengths, env_masks, agent_masks in tqdm(data_loader):
+        for video_name, env_features, agent_features, agent_masks in tqdm(data_loader):
             video_name = video_name[0]
-            length = lengths[0]
             env_features = env_features.cuda()
             agent_features = agent_features.cuda()
-            env_masks = env_masks.cuda()
             agent_masks = agent_masks.cuda()
 
-            confidence_map = np.zeros((1, 2, length, length))
-            start = np.zeros((1, length))
-            end = np.zeros((1, length))
+            confidence_map, start, end = model(
+                env_features,
+                agent_features,
+                agent_masks
+            )
 
-            for start in range(0, length, temporal_dim):
-                end = start + temporal_dim
-
-                period_confidence_map, period_start, period_end = model(
-                    env_features[:, start:end],
-                    agent_features[:, start:end],
-                    lengths,
-                    env_masks[:, start:end],
-                    agent_masks[:, start:end])
-                confidence_map[:, :, start:end] = period_confidence_map.detach().cpu().numpy()
-                start[:, start:end] = period_start.detach().cpu().numpy()
-                end[:, start:end] = period_end.detach().cpu().numpy()
+            confidence_map = confidence_map.detach().cpu().numpy()
+            start = start.detach().cpu().numpy()
+            end = end.detach().cpu().numpy()
 
             # print(start.shape,end.shape,confidence_map.shape)
             start_scores = start[0]
@@ -187,7 +178,6 @@ def BMN_Train(cfg):
     model = EventDetection(cfg)
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR)
-    focal_loss = FocalLoss()
 
     train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="train"),
                                                batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
@@ -199,7 +189,7 @@ def BMN_Train(cfg):
 
     bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
     for epoch in range(cfg.TRAIN.NUM_EPOCHS):
-        train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, focal_loss, bm_mask)
+        train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask)
 
 
 def BMN_inference(cfg):

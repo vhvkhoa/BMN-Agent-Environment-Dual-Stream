@@ -140,21 +140,21 @@ class EventDetection(nn.Module):
 
         self.attention_steps = cfg.TRAIN.ATTENTION_STEPS
 
-    def forward(self, env_features, agent_features, lengths, env_masks, agent_masks):
+    def forward(self, env_features, agent_features, agent_masks):
         bsz, tmprl_sz, n_boxes, ft_sz = agent_features.size()
         step = self.attention_steps
 
         # Fuse all agents together at every temporal point
-        len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
-        agent_fused_features = torch.zeros(tmp_bsz, tmprl_sz, ft_sz).cuda()
+        smpl_bgn = 0
+        agent_fused_features = torch.zeros(bsz, tmprl_sz, ft_sz).cuda()
 
         if n_boxes > 0:
-            while len_idx >= 0:
-                smpl_end = min(lengths[len_idx], smpl_bgn + step)
+            for smpl_bgn in range(0, tmprl_sz, step):
+                smpl_end = smpl_bgn + step
 
-                fuser_input = agent_features[:tmp_bsz, smpl_bgn:smpl_end].contiguous()
+                fuser_input = agent_features[:, smpl_bgn:smpl_end].contiguous()
                 fuser_input = fuser_input.view(-1, n_boxes, ft_sz).permute(1, 0, 2)
-                attention_padding_masks = agent_masks[:tmp_bsz, smpl_bgn:smpl_end]
+                attention_padding_masks = agent_masks[:, smpl_bgn:smpl_end]
                 attention_padding_masks = attention_padding_masks.contiguous().view(-1, n_boxes)
 
                 keep_mask = (torch.sum(~attention_padding_masks, dim=-1) > 0)
@@ -164,40 +164,26 @@ class EventDetection(nn.Module):
                     fuser_input = fuser_input[:, keep_indices]
                     attention_padding_masks = attention_padding_masks[keep_indices]
 
-                    padded_output = torch.zeros(tmp_bsz * (smpl_end - smpl_bgn), ft_sz).cuda()
+                    padded_output = torch.zeros(bsz * (smpl_end - smpl_bgn), ft_sz).cuda()
                     fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
                     fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(~attention_padding_masks, dim=-1, keepdim=True)
                     padded_output[keep_indices] = fuser_output
-                    agent_fused_features[:tmp_bsz, smpl_bgn:smpl_end] = padded_output.view(tmp_bsz, -1, ft_sz)
-
-                while len_idx >= 0 and smpl_end == lengths[len_idx]:
-                    len_idx -= 1
-                    tmp_bsz -= 1
-                smpl_bgn = smpl_end
+                    agent_fused_features[:, smpl_bgn:smpl_end] = padded_output.view(bsz, -1, ft_sz)
 
         env_agent_cat_features = torch.stack([env_features, agent_fused_features], dim=2)
 
-        len_idx, smpl_bgn, tmp_bsz = len(lengths) - 1, 0, bsz
+        smpl_bgn = 0
         context_features = torch.zeros(bsz, tmprl_sz, ft_sz).cuda()
 
-        while len_idx >= 0:
-            smpl_end = min(lengths[len_idx], smpl_bgn + step)
+        for smpl_bgn in range(0, tmprl_sz, step):
+            smpl_end = smpl_bgn + step
 
-            if smpl_bgn == smpl_end:
-                print(lengths[len_idx])
-            fuser_input = env_agent_cat_features[:tmp_bsz, smpl_bgn:smpl_end].contiguous()
+            fuser_input = env_agent_cat_features[:, smpl_bgn:smpl_end].contiguous()
             fuser_input = fuser_input.view(-1, 2, ft_sz).permute(1, 0, 2)
-            attention_padding_masks = env_masks[:tmp_bsz, smpl_bgn:smpl_end]
-            attention_padding_masks = attention_padding_masks.contiguous().view(-1, 2)
 
-            fuser_output = self.agents_environment_fuser(fuser_input, key_padding_mask=attention_padding_masks)
+            fuser_output = self.agents_environment_fuser(fuser_input)
             fuser_output = torch.mean(fuser_output, dim=0)
-            context_features[:tmp_bsz, smpl_bgn:smpl_end] = fuser_output.view(tmp_bsz, -1, ft_sz)
-
-            while len_idx >= 0 and smpl_end == lengths[len_idx]:
-                len_idx -= 1
-                tmp_bsz -= 1
-            smpl_bgn = smpl_end
+            context_features[:, smpl_bgn:smpl_end] = fuser_output.view(bsz, -1, ft_sz)
 
         return self.event_detector(context_features.permute(0, 2, 1))
 
