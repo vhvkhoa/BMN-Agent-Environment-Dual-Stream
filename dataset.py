@@ -114,7 +114,6 @@ class VideoDataSet(Dataset):
         self.event_dict = {}
         self.video_names = []
 
-        print('Reading dataset.')
         for video_name, annotation in annotations.values():
             if annotation['subset'] != self.split:
                 continue
@@ -123,7 +122,7 @@ class VideoDataSet(Dataset):
                 'events': annotation['annotations']
                 # 'events': annotation['timestamps']
             }
-            self.video_names.append(video_name)
+            self.video_names.append('v_' + video_name)
 
         print("Split: %s. Dataset size: %d" % (self.split, len(self.video_names)))
 
