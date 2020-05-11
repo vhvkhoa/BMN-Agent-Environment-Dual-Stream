@@ -3,7 +3,7 @@ from fvcore.common.config import CfgNode
 
 _C = CfgNode()
 
-_C.MODE = 'training'
+_C.MODE = 'train'
 
 _C.TRAIN = CfgNode()
 _C.TRAIN.NUM_EPOCHS = 10

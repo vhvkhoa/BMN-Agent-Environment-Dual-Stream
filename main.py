@@ -179,7 +179,7 @@ def BMN_Train(cfg):
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR)
 
-    train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="train"),
+    train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="training"),
                                                batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                                num_workers=1, pin_memory=True, collate_fn=train_collate_fn)
 
