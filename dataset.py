@@ -73,11 +73,11 @@ def test_collate_fn(batch):
 
 
 class VideoDataSet(Dataset):
-    def __init__(self, cfg, split="training"):
+    def __init__(self, cfg, split='training'):
         self.split = split
         self.video_anno_path = cfg.DATA.ANNOTATION_FILE
 
-        if split == 'train':
+        if split == 'training':
             # self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
             self._get_match_map()
 
