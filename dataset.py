@@ -48,7 +48,7 @@ def train_collate_fn(batch):
 
 
 def test_collate_fn(batch):
-    video_names, b_env_feats, b_agent_feats, b_box_lens = zip(*batch)
+    video_ids, b_env_feats, b_agent_feats, b_box_lens = zip(*batch)
 
     # Make new order to inputs by their lengths (long-to-short)
     b_box_lens = torch.stack(b_box_lens, dim=0)
@@ -69,7 +69,7 @@ def test_collate_fn(batch):
             if len(box_features) > 0:
                 pad_b_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
 
-    return video_names, b_env_feats, pad_b_agent_feats, b_agent_mask
+    return video_ids, b_env_feats, pad_b_agent_feats, b_agent_mask
 
 
 class VideoDataSet(Dataset):
