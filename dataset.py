@@ -128,7 +128,7 @@ class VideoDataSet(Dataset):
 
     def __getitem__(self, index):
         env_features, agent_features, box_lengths = self._load_item(index)
-        if self.split == "train":
+        if self.split == 'training':
             match_score_start, match_score_end, confidence_score = self._get_train_label(index)
             return env_features, agent_features, box_lengths, confidence_score, match_score_start, match_score_end
         else:
