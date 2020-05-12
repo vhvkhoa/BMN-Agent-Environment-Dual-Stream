@@ -112,17 +112,17 @@ class VideoDataSet(Dataset):
 
         # Read event segments
         self.event_dict = {}
-        self.video_names = []
+        self.video_ids = []
 
-        for video_name, annotation in annotations.items():
+        for video_id, annotation in annotations.items():
             if annotation['subset'] != self.split:
                 continue
-            self.event_dict[video_name] = {
+            self.event_dict[video_id] = {
                 'duration': annotation['duration'],
                 'events': annotation['annotations']
                 # 'events': annotation['timestamps']
             }
-            self.video_names.append('v_' + video_name)
+            self.video_ids.append(video_id)
 
         print("Split: %s. Dataset size: %d" % (self.split, len(self.video_names)))
 
@@ -135,7 +135,7 @@ class VideoDataSet(Dataset):
             return self.video_names[index], env_features, agent_features, box_lengths
 
     def _load_item(self, index):
-        video_name = self.video_names[index]
+        video_name = 'v_' + self.video_ids[index]
 
         '''
         Read environment features at every timestamp
@@ -166,8 +166,8 @@ class VideoDataSet(Dataset):
         return env_features, agent_features, box_lengths
 
     def _get_train_label(self, index):
-        video_name = self.video_names[index]
-        video_info = self.event_dict[video_name]
+        video_id = self.video_ids[index]
+        video_info = self.event_dict[video_id]
         video_labels = video_info['events']  # the measurement is second, not frame
         duration = video_info['duration']
 
