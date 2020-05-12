@@ -47,7 +47,7 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask):
             loss[0].cpu().detach().numpy(),
             loss[1].cpu().detach().numpy(),
             loss[2].cpu().detach().numpy(),
-            loss[3].cpu().detach().numpy(),
+            loss[3].cpu().detach().numpy()
         ))
 
         epoch_loss += loss[0].cpu().detach().numpy()
