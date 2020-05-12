@@ -124,7 +124,7 @@ class VideoDataSet(Dataset):
             }
             self.video_ids.append(video_id)
 
-        print("Split: %s. Dataset size: %d" % (self.split, len(self.video_names)))
+        print("Split: %s. Dataset size: %d" % (self.split, len(self.video_ids)))
 
     def __getitem__(self, index):
         env_features, agent_features, box_lengths = self._load_item(index)
@@ -132,7 +132,7 @@ class VideoDataSet(Dataset):
             match_score_start, match_score_end, confidence_score = self._get_train_label(index)
             return env_features, agent_features, box_lengths, confidence_score, match_score_start, match_score_end
         else:
-            return self.video_names[index], env_features, agent_features, box_lengths
+            return self.video_ids[index], env_features, agent_features, box_lengths
 
     def _load_item(self, index):
         video_name = 'v_' + self.video_ids[index]
@@ -218,7 +218,7 @@ class VideoDataSet(Dataset):
         return match_score_start, match_score_end, gt_iou_map
 
     def __len__(self):
-        return len(self.video_names)
+        return len(self.video_ids)
 
 
 if __name__ == '__main__':
