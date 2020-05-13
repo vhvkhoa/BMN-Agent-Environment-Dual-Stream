@@ -120,5 +120,5 @@ def BMN_post_processing(cfg, split='validation'):
         p.join()
 
     result_dict = standardize_results(dict(result_dict))
-    with open(cfg.BMN.POST_PROCESS.RESULTS_FILE, "w") as f:
+    with open(cfg.DATA.RESULT_PATH, "w") as f:
         json.dump(result_dict, f)

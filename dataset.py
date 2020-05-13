@@ -117,8 +117,6 @@ class VideoDataSet(Dataset):
         for video_id, annotation in annotations.items():
             if annotation['subset'] != self.split:
                 continue
-            if annotation['subset'] == 'validation' and len(self.video_ids) >= 10:
-                break
             self.event_dict[video_id] = {
                 'duration': annotation['duration'],
                 'events': annotation['annotations']
