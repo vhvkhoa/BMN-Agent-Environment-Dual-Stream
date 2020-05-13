@@ -51,8 +51,8 @@ def plot_metric(cfg, average_nr_proposals, average_recall, recall, tiou_threshol
     plt.xlabel('Average Number of Proposals per Video', fontsize=fn_size)
     plt.grid(b=True, which="both")
     plt.ylim([0, 1.0])
-    plt.setp(plt.axes().get_xticklabels(), fontsize=fn_size)
-    plt.setp(plt.axes().get_yticklabels(), fontsize=fn_size)
+    plt.setp(ax.get_xticklabels(), fontsize=fn_size)
+    plt.setp(ax.get_yticklabels(), fontsize=fn_size)
     # plt.show()
     plt.savefig(cfg.DATA.FIGURE_PATH)
 
@@ -66,7 +66,7 @@ def evaluate_proposals(cfg):
         subset='validation')
 
     plot_metric(cfg, uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid)
-    print("AR@1 is \t", np.mean(uniform_recall_valid[:, 0]))
-    print("AR@5 is \t", np.mean(uniform_recall_valid[:, 4]))
-    print("AR@10 is \t", np.mean(uniform_recall_valid[:, 9]))
-    print("AR@100 is \t", np.mean(uniform_recall_valid[:, -1]))
+    # print("AR@1 is \t", np.mean(uniform_recall_valid[:, 0]))
+    # print("AR@5 is \t", np.mean(uniform_recall_valid[:, 4]))
+    # print("AR@10 is \t", np.mean(uniform_recall_valid[:, 9]))
+    # print("AR@100 is \t", np.mean(uniform_recall_valid[:, -1]))
