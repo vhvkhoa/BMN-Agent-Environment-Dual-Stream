@@ -147,8 +147,8 @@ def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     with open(cfg.DATA.SCORE_PATH, 'r') as f:
         scores = json.load(f)
 
-    if os.path.isfile(cfg.MODEL.BEST_RECORDS):
-        with open(cfg.MODEL.BEST_RECORDS, 'r') as f:
+    if os.path.isfile(cfg.MODEL.CHECKPOINT_BEST_RECORDS):
+        with open(cfg.MODEL.CHECKPOINT_BEST_RECORDS, 'r') as f:
             best_scores = json.load(f)
 
         for metric, sub_scores in scores.items():
