@@ -137,7 +137,7 @@ def evaluate(cfg, data_loader, model, epoch, n_iter=0):
 
             col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "clr_score", "reg_socre", "score"]
             new_df = pd.DataFrame(new_props, columns=col_name)
-            new_df.to_csv("./results/BMN_results/" + video_name + ".csv", index=False)
+            new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
 
     print("Post processing start")
     BMN_post_processing(cfg)

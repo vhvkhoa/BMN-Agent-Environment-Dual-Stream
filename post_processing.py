@@ -65,7 +65,7 @@ def soft_nms(df, alpha, t1, t2):
 
 def video_post_process(cfg, video_list, video_dict):
     for video_name in video_list:
-        df = pd.read_csv("./output/BMN_results/" + video_name + ".csv")
+        df = pd.read_csv("./outputs/BMN_results/" + video_name + ".csv")
 
         if len(df) > 1:
             snms_alpha = cfg.BMN.POST_PROCESS.SOFT_NMS_ALPHA
