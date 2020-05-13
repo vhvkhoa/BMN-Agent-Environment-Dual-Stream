@@ -14,15 +14,11 @@ def load_json(file):
 
 
 def getDatasetDict(cfg, split):
-    if split == 'train':
-        annotations = load_json(cfg.TRAIN.VIDEO_ANNOTATION_FILE)
-        feature_lengths = load_json(cfg.TRAIN.FEATURE_LENGTHS_PATH)
-    elif split == 'val':
-        annotations = load_json(cfg.VAL.VIDEO_ANNOTATION_FILE)
-        feature_lengths = load_json(cfg.VAL.FEATURE_LENGTHS_PATH)
+    annotations = [
+        anno for anno in load_json(cfg.DATA.ANNOTATION_FILE)['database']
+        if anno['subset'] == split
+    ]
 
-    for video_name in annotations.keys():
-        annotations[video_name]['feature_frame'] = feature_lengths[video_name]
     return annotations
 
 
@@ -51,8 +47,7 @@ def soft_nms(df, alpha, t1, t2):
                 tmp_iou = tmp_iou_list[idx]
                 tmp_width = tend[max_index] - tstart[max_index]
                 if tmp_iou > t1 + (t2 - t1) * tmp_width:
-                    tscore[idx] = tscore[idx] * np.exp(-np.square(tmp_iou) /
-                                                       alpha)
+                    tscore[idx] = tscore[idx] * np.exp(-np.square(tmp_iou) / alpha)
 
         rstart.append(tstart[max_index])
         rend.append(tend[max_index])
@@ -79,8 +74,7 @@ def video_post_process(cfg, video_list, video_dict):
             df = soft_nms(df, snms_alpha, snms_t1, snms_t2)
 
         df = df.sort_values(by="score", ascending=False)
-        video_info = video_dict[video_name]
-        video_duration = video_info["feature_frame"] * 16 / 30
+        video_duration = video_dict[video_name]['duration']
         proposal_list = []
 
         for j in range(min(100, len(df))):
@@ -92,8 +86,8 @@ def video_post_process(cfg, video_list, video_dict):
         result_dict[video_name] = proposal_list
 
 
-def BMN_post_processing(cfg):
-    video_dict = getDatasetDict(cfg)
+def BMN_post_processing(cfg, split='validation'):
+    video_dict = getDatasetDict(cfg, split)
     video_list = list(video_dict.keys())  # [:100]
     global result_dict
     result_dict = mp.Manager().dict()

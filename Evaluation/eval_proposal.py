@@ -3,10 +3,9 @@ import numpy as np
 import pandas as pd
 
 
-
-
 def interpolated_prec_rec(prec, rec):
-    """Interpolated AP - VOCdevkit from VOC 2011.
+    """
+    Interpolated AP - VOCdevkit from VOC 2011.
     """
     mprec = np.hstack([[0], prec, [0]])
     mrec = np.hstack([[0], rec, [1]])
@@ -15,6 +14,7 @@ def interpolated_prec_rec(prec, rec):
     idx = np.where(mrec[1::] != mrec[0:-1])[0] + 1
     ap = np.sum((mrec[idx] - mrec[idx - 1]) * mprec[idx])
     return ap
+
 
 def segment_iou(target_segment, candidate_segments):
     """Compute the temporal intersection over union between a
@@ -38,11 +38,12 @@ def segment_iou(target_segment, candidate_segments):
     segments_intersection = (tt2 - tt1).clip(0)
     # Segment union.
     segments_union = (candidate_segments[:, 1] - candidate_segments[:, 0]) \
-      + (target_segment[1] - target_segment[0]) - segments_intersection
+        + (target_segment[1] - target_segment[0]) - segments_intersection
     # Compute overlap as the ratio of the intersection
     # over union of two segments.
     tIoU = segments_intersection.astype(float) / segments_union
     return tIoU
+
 
 def wrapper_segment_iou(target_segments, candidate_segments):
     """Compute intersection over union btw segments
@@ -64,7 +65,7 @@ def wrapper_segment_iou(target_segments, candidate_segments):
     n, m = candidate_segments.shape[0], target_segments.shape[0]
     tiou = np.empty((n, m))
     for i in range(m):
-        tiou[:, i] = segment_iou(target_segments[i,:], candidate_segments)
+        tiou[:, i] = segment_iou(target_segments[i, :], candidate_segments)
 
     return tiou
 
@@ -106,12 +107,12 @@ class ANETproposal(object):
         self.proposal = self._import_proposal(proposal_filename)
 
         if self.verbose:
-            print ('[INIT] Loaded annotations from {} subset.'.format(subset))
+            print('[INIT] Loaded annotations from {} subset.'.format(subset))
             nr_gt = len(self.ground_truth)
-            print ('\tNumber of ground truth instances: {}'.format(nr_gt))
+            print('\tNumber of ground truth instances: {}'.format(nr_gt))
             nr_pred = len(self.proposal)
-            print ('\tNumber of proposals: {}'.format(nr_pred))
-            print ('\tFixed threshold for tiou score: {}'.format(self.tiou_thresholds))
+            print('\tNumber of proposals: {}'.format(nr_pred))
+            print('\tFixed threshold for tiou score: {}'.format(self.tiou_thresholds))
 
     def _import_ground_truth(self, ground_truth_filename):
         """Reads ground truth file, checks if it is well formatted, and returns
@@ -189,38 +190,42 @@ class ANETproposal(object):
                 t_start_lst.append(result['segment'][0])
                 t_end_lst.append(result['segment'][1])
                 score_lst.append(result['score'])
-        proposal = pd.DataFrame({'video-id': video_lst,
-                                   't-start': t_start_lst,
-                                   't-end': t_end_lst,
-                                   'score': score_lst})
+        proposal = pd.DataFrame({
+            'video-id': video_lst,
+            't-start': t_start_lst,
+            't-end': t_end_lst,
+            'score': score_lst
+        })
         return proposal
 
     def evaluate(self):
         """Evaluates a proposal file. To measure the performance of a
-        method for the proposal task, we computes the area under the 
+        method for the proposal task, we computes the area under the
         average recall vs average number of proposals per video curve.
         """
         recall, avg_recall, proposals_per_video = average_recall_vs_avg_nr_proposals(
-                self.ground_truth, self.proposal,
-                max_avg_nr_proposals=self.max_avg_nr_proposals,
-                tiou_thresholds=self.tiou_thresholds)
+            self.ground_truth, self.proposal,
+            max_avg_nr_proposals=self.max_avg_nr_proposals,
+            tiou_thresholds=self.tiou_thresholds
+        )
 
         area_under_curve = np.trapz(avg_recall, proposals_per_video)
 
         if self.verbose:
             print('[RESULTS] Performance on ActivityNet proposal task.')
-            print('\tArea Under the AR vs AN curve: {}%'.format(100.*float(area_under_curve)/proposals_per_video[-1]))
+            print('\tArea Under the AR vs AN curve: {}%'.format(100. * float(area_under_curve) / proposals_per_video[-1]))
 
         self.recall = recall
         self.avg_recall = avg_recall
         self.proposals_per_video = proposals_per_video
 
+
 def average_recall_vs_avg_nr_proposals(ground_truth, proposals,
                                        max_avg_nr_proposals=None,
                                        tiou_thresholds=np.linspace(0.5, 0.95, 10)):
-    """ Computes the average recall given an average number 
+    """ Computes the average recall given an average number
         of proposals per video.
-    
+
     Parameters
     ----------
     ground_truth : df
@@ -231,7 +236,7 @@ def average_recall_vs_avg_nr_proposals(ground_truth, proposals,
         Required fields: ['video-id, 't-start', 't-end', 'score']
     tiou_thresholds : 1darray, optional
         array with tiou thresholds.
-        
+
     Outputs
     -------
     recall : 2darray
@@ -246,9 +251,9 @@ def average_recall_vs_avg_nr_proposals(ground_truth, proposals,
     video_lst = ground_truth['video-id'].unique()
 
     if not max_avg_nr_proposals:
-        max_avg_nr_proposals = float(proposals.shape[0])/video_lst.shape[0]
+        max_avg_nr_proposals = float(proposals.shape[0]) / video_lst.shape[0]
 
-    ratio = max_avg_nr_proposals*float(video_lst.shape[0])/proposals.shape[0]
+    ratio = max_avg_nr_proposals * float(video_lst.shape[0]) / proposals.shape[0]
 
     # Adaptation to query faster
     ground_truth_gbvn = ground_truth.groupby('video-id')
@@ -269,7 +274,7 @@ def average_recall_vs_avg_nr_proposals(ground_truth, proposals,
 
         # Get ground-truth instances associated to this video.
         ground_truth_videoid = ground_truth_gbvn.get_group(videoid)
-        this_video_ground_truth = ground_truth_videoid.loc[:,['t-start', 't-end']].values
+        this_video_ground_truth = ground_truth_videoid.loc[:, ['t-start', 't-end']].values
 
         if this_video_proposals.shape[0] == 0:
             n = this_video_ground_truth.shape[0]
@@ -289,20 +294,20 @@ def average_recall_vs_avg_nr_proposals(ground_truth, proposals,
         tiou = wrapper_segment_iou(this_video_proposals, this_video_ground_truth)
         score_lst.append(tiou)
 
-    # Given that the length of the videos is really varied, we 
-    # compute the number of proposals in terms of a ratio of the total 
-    # proposals retrieved, i.e. average recall at a percentage of proposals 
+    # Given that the length of the videos is really varied, we
+    # compute the number of proposals in terms of a ratio of the total
+    # proposals retrieved, i.e. average recall at a percentage of proposals
     # retrieved per video.
 
     # Computes average recall.
-    pcn_lst = np.arange(1, 101) / 100.0 *(max_avg_nr_proposals*float(video_lst.shape[0])/total_nr_proposals)
+    pcn_lst = np.arange(1, 101) / 100.0 * (max_avg_nr_proposals * float(video_lst.shape[0]) / total_nr_proposals)
     matches = np.empty((video_lst.shape[0], pcn_lst.shape[0]))
     positives = np.empty(video_lst.shape[0])
     recall = np.empty((tiou_thresholds.shape[0], pcn_lst.shape[0]))
     # Iterates over each tiou threshold.
     for ridx, tiou in enumerate(tiou_thresholds):
 
-        # Inspect positives retrieved per video at different 
+        # Inspect positives retrieved per video at different
         # number of proposals (percentage of the total retrieved).
         for i, score in enumerate(score_lst):
             # Total positives per video.
@@ -326,4 +331,3 @@ def average_recall_vs_avg_nr_proposals(ground_truth, proposals,
     proposals_per_video = pcn_lst * (float(total_nr_proposals) / video_lst.shape[0])
 
     return recall, avg_recall, proposals_per_video
-
