@@ -14,10 +14,10 @@ def load_json(file):
 
 
 def getDatasetDict(cfg, split):
-    annotations = [
-        anno for anno in load_json(cfg.DATA.ANNOTATION_FILE)['database']
+    annotations = {
+        vdo_id: anno for vdo_id, anno in load_json(cfg.DATA.ANNOTATION_FILE)['database'].items()
         if anno['subset'] == split
-    ]
+    }
 
     return annotations
 
