@@ -86,6 +86,18 @@ def video_post_process(cfg, video_list, video_dict):
         result_dict[video_name] = proposal_list
 
 
+def standardize_results(video_dict):
+    result_dict = {
+        'version': 'ACTIVITY_NET_1.3',
+        'external_data': [],
+        'results': dict(),
+    }
+
+    for video_id, results in video_dict.items():
+        result_dict['results'][video_id] = results
+    return result_dict
+
+
 def BMN_post_processing(cfg, split='validation'):
     video_dict = getDatasetDict(cfg, split)
     video_list = list(video_dict.keys())  # [:100]
@@ -107,6 +119,6 @@ def BMN_post_processing(cfg, split='validation'):
     for p in processes:
         p.join()
 
-    result_dict = dict(result_dict)
+    result_dict = standardize_results(dict(result_dict))
     with open(cfg.BMN.POST_PROCESS.RESULTS_FILE, "w") as f:
         json.dump(result_dict, f)
