@@ -163,7 +163,7 @@ def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     else:
         best_scores = scores
 
-    with open(cfg.MODEL.BEST_RECORDS, 'w') as f:
+    with open(cfg.MODEL.CHECKPOINT_BEST_RECORDS, 'w') as f:
         json.dump(best_scores, f)
 
     state = {
