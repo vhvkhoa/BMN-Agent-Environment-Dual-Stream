@@ -43,7 +43,7 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
 
         loss = bmn_loss_func(confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
         optimizer.zero_grad()
-        loss.backward()
+        loss[0].backward()
         optimizer.step()
 
         loss = [l.cpu().detach().numpy() for l in loss]
