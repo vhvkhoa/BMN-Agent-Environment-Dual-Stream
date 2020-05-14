@@ -74,10 +74,10 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
         epoch_pemclr_loss += loss[2]
         epoch_pemreg_loss += loss[3]
 
-        writer.add_scalar('Loss', loss[0], n_iter)
-        writer.add_scalar('TemLoss', loss[1], n_iter)
-        writer.add_scalar('PemLoss Regression', loss[2], n_iter)
-        writer.add_scalar('PemLoss Classification', loss[3], n_iter)
+        writer.add_scalar('Loss', loss[0], epoch * len(train_loader) + n_iter)
+        writer.add_scalar('TemLoss', loss[1], epoch * len(train_loader) + n_iter)
+        writer.add_scalar('PemLoss Regression', loss[2], epoch * len(train_loader) + n_iter)
+        writer.add_scalar('PemLoss Classification', loss[3], epoch * len(train_loader) + n_iter)
         '''
         if (n_iter + 1) % cfg.TRAIN.STEP_PERIOD == 0:
             write_step = int((n_iter + 1) / cfg.TRAIN.STEP_PERIOD)
