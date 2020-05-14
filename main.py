@@ -31,7 +31,7 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
     epoch_loss = 0
     period_loss = [0] * 4
 
-    for n_iter, (env_features, agent_features, agent_masks, label_confidence, label_start, label_end) in enumerate(train_loader):
+    for n_iter, (env_features, agent_features, agent_masks, label_confidence, label_start, label_end) in enumerate(tqdm(train_loader)):
         env_features = env_features.cuda()
         agent_features = agent_features.cuda()
         agent_masks = agent_masks.cuda()
