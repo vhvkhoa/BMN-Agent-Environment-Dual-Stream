@@ -185,7 +185,7 @@ def BMN_Train(cfg):
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR)
 
-    exp_id = max([0] + [int(run.split('_')[-1]) for run in os.listdir(cfg.TRAIN.LOG_DIR)])
+    exp_id = max([0] + [int(run.split('_')[-1]) for run in os.listdir(cfg.TRAIN.LOG_DIR)]) + 1
     log_dir = os.path.join(cfg.TRAIN.LOG_DIR, 'run_' + str(exp_id))
     writer = SummaryWriter(log_dir)
 
