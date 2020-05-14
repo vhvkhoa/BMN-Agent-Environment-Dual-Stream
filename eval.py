@@ -15,13 +15,13 @@ def run_evaluation(ground_truth_filename, proposal_filename,
                                  tiou_thresholds=tiou_thresholds,
                                  max_avg_nr_proposals=max_avg_nr_proposals,
                                  subset=subset, verbose=True, check_status=False)
-    anet_proposal.evaluate()
+    auc_score = anet_proposal.evaluate()
 
     recall = anet_proposal.recall
     average_recall = anet_proposal.avg_recall
     average_nr_proposals = anet_proposal.proposals_per_video
 
-    return (average_nr_proposals, average_recall, recall)
+    return (average_nr_proposals, average_recall, recall, auc_score)
 
 
 def plot_metric(cfg, average_nr_proposals, average_recall, recall, tiou_thresholds=np.linspace(0.5, 0.95, 10)):
@@ -58,7 +58,7 @@ def plot_metric(cfg, average_nr_proposals, average_recall, recall, tiou_threshol
 
 
 def evaluate_proposals(cfg):
-    uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid = run_evaluation(
+    uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid, auc_score = run_evaluation(
         cfg.DATA.ANNOTATION_FILE,
         cfg.DATA.RESULT_PATH,
         max_avg_nr_proposals=100,
@@ -70,3 +70,5 @@ def evaluate_proposals(cfg):
     # print("AR@5 is \t", np.mean(uniform_recall_valid[:, 4]))
     # print("AR@10 is \t", np.mean(uniform_recall_valid[:, 9]))
     # print("AR@100 is \t", np.mean(uniform_recall_valid[:, -1]))
+
+    return auc_score

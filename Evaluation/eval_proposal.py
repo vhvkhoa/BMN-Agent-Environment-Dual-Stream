@@ -219,6 +219,8 @@ class ANETproposal(object):
         self.avg_recall = avg_recall
         self.proposals_per_video = proposals_per_video
 
+        return 100. * float(area_under_curve) / proposals_per_video[-1]
+
 
 def average_recall_vs_avg_nr_proposals(ground_truth, proposals,
                                        max_avg_nr_proposals=None,
