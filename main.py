@@ -42,22 +42,17 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
         confidence_map, start, end = model(env_features, agent_features, agent_masks)
 
         loss = bmn_loss_func(confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
-        optimizer.zero_grad()
-        loss[0].backward()
-        optimizer.step()
-
-        loss = [l.cpu().detach().numpy() for l in loss]
-        '''
         total_loss = loss[0] / cfg.TRAIN.STEP_PERIOD
         total_loss.backward()
 
-        if (n_iter + 1) % cfg.TRAIN.STEP_PERIOD == 0 or n_iter == (len(train_loader) - 1):
-            optimizer.step()
-            optimizer.zero_grad()
-
         loss = [l.cpu().detach().numpy() / cfg.TRAIN.STEP_PERIOD for l in loss]
         period_loss = [l + pl for l, pl in zip(loss, period_loss)]
-        '''
+
+        if (n_iter + 1) % cfg.TRAIN.STEP_PERIOD != 0 and n_iter != (len(train_loader) - 1):
+            continue
+
+        optimizer.step()
+        optimizer.zero_grad()
 
         '''
         print("Step %d:\tLoss: %f.\tTem Loss: %f.\tPem RegLoss: %f.\tPem ClsLoss: %f" % (
@@ -69,23 +64,23 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
         ))
         '''
 
-        epoch_loss += loss[0]
-        epoch_tem_loss += loss[1]
-        epoch_pemclr_loss += loss[2]
-        epoch_pemreg_loss += loss[3]
+        epoch_loss += period_loss[0]
+        epoch_tem_loss += period_loss[1]
+        epoch_pemclr_loss += period_loss[2]
+        epoch_pemreg_loss += period_loss[3]
 
+        '''
         writer.add_scalar('Loss', loss[0], epoch * len(train_loader) + n_iter)
         writer.add_scalar('TemLoss', loss[1], epoch * len(train_loader) + n_iter)
         writer.add_scalar('PemLoss Regression', loss[2], epoch * len(train_loader) + n_iter)
         writer.add_scalar('PemLoss Classification', loss[3], epoch * len(train_loader) + n_iter)
         '''
-        if (n_iter + 1) % cfg.TRAIN.STEP_PERIOD == 0:
-            write_step = int((n_iter + 1) / cfg.TRAIN.STEP_PERIOD)
-            writer.add_scalar('Loss', period_loss[0], write_step)
-            writer.add_scalar('TemLoss', period_loss[1], write_step)
-            writer.add_scalar('PemLoss Regression', period_loss[2], write_step)
-            writer.add_scalar('PemLoss Classification', period_loss[3], write_step)
-        '''
+        write_step = epoch * len(train_loader) + n_iter
+        writer.add_scalar('Loss', period_loss[0], write_step)
+        writer.add_scalar('TemLoss', period_loss[1], write_step)
+        writer.add_scalar('PemLoss Regression', period_loss[2], write_step)
+        writer.add_scalar('PemLoss Classification', period_loss[3], write_step)
+        period_loss = [0] * 4
 
         # if n_iter % 1000 == 0:  # and n_iter != 0:
         #     evaluate(cfg, test_loader, model, epoch, n_iter)
