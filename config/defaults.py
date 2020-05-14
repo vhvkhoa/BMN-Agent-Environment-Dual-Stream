@@ -12,7 +12,7 @@ _C.TRAIN.ATTENTION_STEPS = 2
 _C.TRAIN.LR = 0.0001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ''
 _C.TRAIN.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/train.json'
-_C.TRAIN.LOG_DIR = './runs/'
+_C.TRAIN.LOG_DIR = './agent_env_runs/'
 
 _C.VAL = CfgNode()
 _C.VAL.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/val_1.json'
@@ -23,15 +23,14 @@ _C.DATA.ENV_FEATURE_DIR = '../datasets/activitynet/new_env_features/'
 _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/new_agent_features/'
 _C.DATA.RESULT_PATH = './results/results.json'
 _C.DATA.FIGURE_PATH = './results/result_figure.jpg'
-_C.DATA.SCORE_PATH = './results/scores.json'
 _C.DATA.TEMPORAL_DIM = 100
 _C.DATA.FEATURE_DIM = 2304
 _C.DATA.TARGET_FPS = 30
 _C.DATA.SAMPLING_RATE = 16
 
 _C.MODEL = CfgNode()
+_C.MODEL.SCORE_PATH = './checkpoints/scores.json'
 _C.MODEL.CHECKPOINT_DIR = 'checkpoints/'
-_C.MODEL.CHECKPOINT_BEST_RECORDS = 'checkpoints/best_scores.json'
 
 _C.BMN = CfgNode()
 _C.BMN.NUM_SAMPLES = 32

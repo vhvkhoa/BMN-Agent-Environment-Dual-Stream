@@ -158,7 +158,7 @@ def evaluate(cfg, data_loader, model, epoch, writer):
     if epoch == 0:
         scores = []
     else:
-        with open(cfg.DATA.SCORE_PATH, 'r') as f:
+        with open(cfg.MODEL.SCORE_PATH, 'r') as f:
             scores = json.load(f)
 
     if auc_score > np.max(scores):
@@ -170,7 +170,7 @@ def evaluate(cfg, data_loader, model, epoch, writer):
 
     scores.append(auc_score)
 
-    with open(cfg.DATA.SCORE_PATH, 'w') as f:
+    with open(cfg.MODEL.SCORE_PATH, 'w') as f:
         json.dump(scores, f)
 
     state = {
@@ -184,7 +184,9 @@ def BMN_Train(cfg):
     model = EventDetection(cfg)
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR)
-    log_dir = os.path.join(cfg.TRAIN.LOG_DIR, 'run_' + str(len(os.listdir(cfg.TRAIN.LOG_DIR))))
+
+    exp_id = max([0] + [int(run.split('_')[-1]) for run in os.listdir(cfg.TRAIN.LOG_DIR)])
+    log_dir = os.path.join(cfg.TRAIN.LOG_DIR, str(exp_id))
     writer = SummaryWriter(log_dir)
 
     train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="training"),
