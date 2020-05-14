@@ -8,6 +8,7 @@ import pandas as pd
 import torch
 import torch.nn.parallel
 import torch.optim as optim
+from torch.utils.tensorboard import SummaryWriter
 
 from models import EventDetection
 from dataset import VideoDataSet, train_collate_fn, test_collate_fn
@@ -21,7 +22,7 @@ from config.defaults import get_cfg
 sys.dont_write_bytecode = True
 
 
-def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask):
+def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, writer):
     model.train()
     epoch_pemreg_loss = 0
     epoch_pemclr_loss = 0
@@ -42,18 +43,25 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask):
         loss[0].backward()
         optimizer.step()
 
+        loss = [l.cpu().detach().numpy() for l in loss]
+
         print("Step %d:\tLoss: %f.\tTem Loss: %f.\tPem RegLoss: %f.\tPem ClsLoss: %f" % (
             n_iter,
-            loss[0].cpu().detach().numpy(),
-            loss[1].cpu().detach().numpy(),
-            loss[2].cpu().detach().numpy(),
-            loss[3].cpu().detach().numpy()
+            loss[0],
+            loss[1],
+            loss[2],
+            loss[3]
         ))
 
-        epoch_loss += loss[0].cpu().detach().numpy()
-        epoch_tem_loss += loss[1].cpu().detach().numpy()
-        epoch_pemclr_loss += loss[2].cpu().detach().numpy()
-        epoch_pemreg_loss += loss[3].cpu().detach().numpy()
+        epoch_loss += loss[0]
+        epoch_tem_loss += loss[1]
+        epoch_pemclr_loss += loss[2]
+        epoch_pemreg_loss += loss[3]
+
+        writer.add_scalar('Loss', loss[0], n_iter)
+        writer.add_scalar('TemLoss', loss[1], n_iter)
+        writer.add_scalar('PemLoss Regression', loss[2], n_iter)
+        writer.add_scalar('PemLoss Classification', loss[3], n_iter)
 
         # if n_iter % 1000 == 0:  # and n_iter != 0:
         #     evaluate(cfg, test_loader, model, epoch, n_iter)
@@ -65,10 +73,10 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask):
             epoch_pemreg_loss / (n_iter + 1),
             epoch_loss / (n_iter + 1)))
 
-    evaluate(cfg, test_loader, model, epoch, n_iter)
+    evaluate(cfg, test_loader, model, epoch, writer)
 
 
-def evaluate(cfg, data_loader, model, epoch, n_iter=0):
+def evaluate(cfg, data_loader, model, epoch, writer):
     model.eval()
     with torch.no_grad():
         for video_name, env_features, agent_features, agent_masks in tqdm(data_loader):
@@ -142,42 +150,40 @@ def evaluate(cfg, data_loader, model, epoch, n_iter=0):
     print("Post processing start")
     BMN_post_processing(cfg)
     print("Post processing finished")
-    evaluate_proposals(cfg)
+    auc_score = evaluate_proposals(cfg)
+    writer.add_scalar('AUC', auc_score, epoch)
 
-    with open(cfg.DATA.SCORE_PATH, 'r') as f:
-        scores = json.load(f)
-
-    if os.path.isfile(cfg.MODEL.CHECKPOINT_BEST_RECORDS):
-        with open(cfg.MODEL.CHECKPOINT_BEST_RECORDS, 'r') as f:
-            best_scores = json.load(f)
-
-        for metric, sub_scores in scores.items():
-            for i, score in enumerate(sub_scores):
-                if score > best_scores[metric][i]:
-                    state = {
-                        'epoch': epoch + 1,
-                        'iter': n_iter,
-                        'state_dict': model.state_dict()
-                    }
-                    torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "best_%s_%d.pth.tar" % (metric, i)))
+    if epoch == 0:
+        scores = []
     else:
-        best_scores = scores
+        with open(cfg.DATA.SCORE_PATH, 'r') as f:
+            scores = json.load(f)
 
-    with open(cfg.MODEL.CHECKPOINT_BEST_RECORDS, 'w') as f:
-        json.dump(best_scores, f)
+    if auc_score > np.max(scores):
+        state = {
+            'epoch': epoch + 1,
+            'state_dict': model.state_dict()
+        }
+        torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "best_%s_%d.pth" % ('auc', epoch + 1)))
+
+    scores.append(auc_score)
+
+    with open(cfg.DATA.SCORE_PATH, 'w') as f:
+        json.dump(scores, f)
 
     state = {
         'epoch': epoch + 1,
-        'iter': n_iter,
         'state_dict': model.state_dict()
     }
-    torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "model_%d_%d.pth.tar" % (epoch + 1, n_iter)))
+    torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "model_%d.pth" % epoch + 1))
 
 
 def BMN_Train(cfg):
     model = EventDetection(cfg)
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR)
+    log_dir = os.path.join(cfg.TRAIN.LOG_DIR, 'run_' + str(len(os.listdir(cfg.TRAIN.LOG_DIR))))
+    writer = SummaryWriter(log_dir)
 
     train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="training"),
                                                batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
@@ -189,7 +195,7 @@ def BMN_Train(cfg):
 
     bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
     for epoch in range(cfg.TRAIN.NUM_EPOCHS):
-        train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask)
+        train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, writer)
 
 
 def BMN_inference(cfg):
