@@ -45,7 +45,7 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
         total_loss = loss[0] / cfg.TRAIN.STEP_PERIOD
         total_loss.backward()
 
-        if (n_iter + 1) % cfg.TRAIN.STEP_PERIOD == 0 or n_iter == (len(train_loader) - 1:
+        if (n_iter + 1) % cfg.TRAIN.STEP_PERIOD == 0 or n_iter == (len(train_loader) - 1):
             optimizer.step()
             optimizer.zero_grad()
 
