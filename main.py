@@ -186,7 +186,7 @@ def BMN_Train(cfg):
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR)
 
     exp_id = max([0] + [int(run.split('_')[-1]) for run in os.listdir(cfg.TRAIN.LOG_DIR)])
-    log_dir = os.path.join(cfg.TRAIN.LOG_DIR, str(exp_id))
+    log_dir = os.path.join(cfg.TRAIN.LOG_DIR, 'run_' + str(exp_id))
     writer = SummaryWriter(log_dir)
 
     train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="training"),
