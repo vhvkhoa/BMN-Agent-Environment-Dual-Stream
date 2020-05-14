@@ -161,7 +161,7 @@ def evaluate(cfg, data_loader, model, epoch, writer):
         with open(cfg.MODEL.SCORE_PATH, 'r') as f:
             scores = json.load(f)
 
-    if auc_score > np.max(scores):
+    if len(scores) == 0 or auc_score > max(scores):
         state = {
             'epoch': epoch + 1,
             'state_dict': model.state_dict()
