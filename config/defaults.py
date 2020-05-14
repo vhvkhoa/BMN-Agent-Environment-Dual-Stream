@@ -9,7 +9,7 @@ _C.TRAIN = CfgNode()
 _C.TRAIN.NUM_EPOCHS = 10
 _C.TRAIN.BATCH_SIZE = 4
 _C.TRAIN.ATTENTION_STEPS = 2
-_C.TRAIN.LR = 0.001
+_C.TRAIN.LR = 0.0001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ''
 _C.TRAIN.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/train.json'
 

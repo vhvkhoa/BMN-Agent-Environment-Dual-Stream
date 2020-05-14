@@ -55,8 +55,8 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask):
         epoch_pemclr_loss += loss[2].cpu().detach().numpy()
         epoch_pemreg_loss += loss[3].cpu().detach().numpy()
 
-        if n_iter % 1000 == 0:  # and n_iter != 0:
-            evaluate(cfg, test_loader, model, epoch, n_iter)
+        # if n_iter % 1000 == 0:  # and n_iter != 0:
+        #     evaluate(cfg, test_loader, model, epoch, n_iter)
 
     print(
         "BMN training loss(epoch %d): tem_loss: %.03f, pem class_loss: %.03f, pem reg_loss: %.03f, total_loss: %.03f" % (
