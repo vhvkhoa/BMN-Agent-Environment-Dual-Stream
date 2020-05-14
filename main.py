@@ -45,6 +45,7 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
 
         loss = [l.cpu().detach().numpy() for l in loss]
 
+        '''
         print("Step %d:\tLoss: %f.\tTem Loss: %f.\tPem RegLoss: %f.\tPem ClsLoss: %f" % (
             n_iter,
             loss[0],
@@ -52,6 +53,7 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
             loss[2],
             loss[3]
         ))
+        '''
 
         epoch_loss += loss[0]
         epoch_tem_loss += loss[1]
