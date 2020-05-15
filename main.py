@@ -30,6 +30,8 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
     epoch_tem_loss = 0
     epoch_loss = 0
     period_loss = [0] * 4
+    last_period_size = len(train_loader) % cfg.TRAIN.STEP_PERIOD
+    last_period_start = cfg.TRAIN.STEP_PERIOD * (len(train_loader) // cfg.TRAIN.STEP_PERIOD)
 
     for n_iter, (env_features, agent_features, agent_masks, label_confidence, label_start, label_end) in enumerate(tqdm(train_loader)):
         env_features = env_features.cuda()
@@ -42,7 +44,8 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
         confidence_map, start, end = model(env_features, agent_features, agent_masks)
 
         loss = bmn_loss_func(confidence_map, start, end, label_confidence, label_start, label_end, bm_mask.cuda())
-        total_loss = loss[0] / cfg.TRAIN.STEP_PERIOD
+        period_size = cfg.TRAIN.STEP_PERIOD if n_iter < last_period_start else last_period_size
+        total_loss = loss[0] / period_size
         total_loss.backward()
 
         loss = [l.cpu().detach().numpy() / cfg.TRAIN.STEP_PERIOD for l in loss]
