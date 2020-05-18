@@ -36,8 +36,11 @@ class TransformerEncoder(nn.Module):
         >>> out = transformer_encoder(src)
     """
 
-    def __init__(self, num_features, num_heads=4, dim_feedforward=1024, drop_out=0.1, activation='relu', num_layers=1, norm=None):
+    def __init__(self, cfg, dim_feedforward=1024, drop_out=0.1, activation='relu', norm=None):
         super(TransformerEncoder, self).__init__()
+        num_features = cfg.DATA.FEATURE_DIM
+        num_heads = cfg.MODEL.ATTENTION_HEADS
+        num_layers = cfg.MODEL.ATTENTION_LAYERS
         encoder_layer = TransformerEncoderLayer(num_features, num_heads, dim_feedforward, drop_out, activation)
         self.layers = _get_clones(encoder_layer, num_layers)
         self.num_layers = num_layers
@@ -134,8 +137,8 @@ class EventDetection(nn.Module):
     def __init__(self, cfg):
         super(EventDetection, self).__init__()
 
-        self.agents_fuser = TransformerEncoder(cfg.DATA.FEATURE_DIM)
-        self.agents_environment_fuser = TransformerEncoder(cfg.DATA.FEATURE_DIM)
+        self.agents_fuser = TransformerEncoder(cfg)
+        self.agents_environment_fuser = TransformerEncoder(cfg)
         self.event_detector = BoundaryMatchingNetwork(cfg)
 
         self.attention_steps = cfg.TRAIN.ATTENTION_STEPS
