@@ -22,7 +22,7 @@ from config.defaults import get_cfg
 sys.dont_write_bytecode = True
 
 
-def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, writer):
+def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, writer, checkpoint_dir):
     model.train()
     optimizer.zero_grad()
     epoch_pemreg_loss = 0
@@ -95,10 +95,10 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
             epoch_pemreg_loss / (n_iter + 1),
             epoch_loss / (n_iter + 1)))
 
-    evaluate(cfg, test_loader, model, epoch, writer)
+    evaluate(cfg, test_loader, model, epoch, writer, checkpoint_dir)
 
 
-def evaluate(cfg, data_loader, model, epoch, writer):
+def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
     model.eval()
     with torch.no_grad():
         for video_name, env_features, agent_features, agent_masks in tqdm(data_loader):
@@ -186,7 +186,7 @@ def evaluate(cfg, data_loader, model, epoch, writer):
             'epoch': epoch + 1,
             'state_dict': model.state_dict()
         }
-        torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "best_%s_%d.pth" % ('auc', epoch + 1)))
+        torch.save(state, os.path.join(checkpoint_dir, "best_%s.pth" % 'auc'))
 
     scores.append(auc_score)
 
@@ -197,7 +197,7 @@ def evaluate(cfg, data_loader, model, epoch, writer):
         'epoch': epoch + 1,
         'state_dict': model.state_dict()
     }
-    torch.save(state, os.path.join(cfg.MODEL.CHECKPOINT_DIR, "model_%d.pth" % (epoch + 1)))
+    torch.save(state, os.path.join(checkpoint_dir, "model_%d.pth" % (epoch + 1)))
 
 
 def BMN_Train(cfg):
@@ -209,6 +209,10 @@ def BMN_Train(cfg):
     log_dir = os.path.join(cfg.TRAIN.LOG_DIR, 'run_' + str(exp_id))
     writer = SummaryWriter(log_dir)
 
+    checkpoint_dir = os.path.join(cfg.MODEL.CHECKPOINT_DIR, 'checkpoint_' + str(exp_id))
+    assert not os.path.isdir(checkpoint_dir), 'Checkpoint directory %s has already been created.' % checkpoint_dir
+    os.makedirs(checkpoint_dir)
+
     train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="training"),
                                                batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                                num_workers=1, pin_memory=True, collate_fn=train_collate_fn)
@@ -219,7 +223,7 @@ def BMN_Train(cfg):
 
     bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
     for epoch in range(cfg.TRAIN.NUM_EPOCHS):
-        train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, writer)
+        train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, writer, checkpoint_dir)
 
 
 def BMN_inference(cfg):
