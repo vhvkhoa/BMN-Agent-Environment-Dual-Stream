@@ -202,7 +202,7 @@ def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
 
 def BMN_Train(cfg):
     model = EventDetection(cfg)
-    model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
+    model = torch.nn.DataParallel(model, device_ids=[0, 1]).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=cfg.TRAIN.LR)
 
     exp_id = max([0] + [int(run.split('_')[-1]) for run in os.listdir(cfg.TRAIN.LOG_DIR)]) + 1
