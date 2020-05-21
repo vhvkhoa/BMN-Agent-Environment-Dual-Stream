@@ -143,7 +143,10 @@ class EventDetection(nn.Module):
 
         self.attention_steps = cfg.TRAIN.ATTENTION_STEPS
 
-    def forward(self, env_features, agent_features, agent_masks):
+    def forward(self, env_features, agent_features=None, agent_masks=None):
+        if agent_features is None:
+            return self.event_detector(env_features.permute(0, 2, 1))
+
         bsz, tmprl_sz, n_boxes, ft_sz = agent_features.size()
         step = self.attention_steps
 
