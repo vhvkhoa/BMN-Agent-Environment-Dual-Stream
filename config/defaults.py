@@ -4,6 +4,8 @@ from fvcore.common.config import CfgNode
 _C = CfgNode()
 
 _C.MODE = 'train'
+_C.USE_ENV = True
+_C.USE_AGENT = False
 
 _C.TRAIN = CfgNode()
 _C.TRAIN.NUM_EPOCHS = 10

@@ -143,7 +143,7 @@ class EventDetection(nn.Module):
 
         self.attention_steps = cfg.TRAIN.ATTENTION_STEPS
 
-    def forward(self, env_features, agent_features=None, agent_masks=None):
+    def forward(self, env_features=None, agent_features=None, agent_masks=None):
         if agent_features is None:
             return self.event_detector(env_features.permute(0, 2, 1))
 
@@ -175,6 +175,9 @@ class EventDetection(nn.Module):
                     fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(~attention_padding_masks, dim=-1, keepdim=True)
                     padded_output[keep_indices] = fuser_output
                     agent_fused_features[:, smpl_bgn:smpl_end] = padded_output.view(bsz, -1, ft_sz)
+
+        if env_features is None:
+            return self.event_detector(agent_fused_features.permute(0, 2, 1))
 
         env_agent_cat_features = torch.stack([env_features, agent_fused_features], dim=2)
 
