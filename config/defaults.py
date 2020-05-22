@@ -3,6 +3,7 @@ from fvcore.common.config import CfgNode
 
 _C = CfgNode()
 
+_C.GPU_IDS = [0]
 _C.MODE = 'train'
 _C.USE_ENV = True
 _C.USE_AGENT = False
