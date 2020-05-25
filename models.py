@@ -206,9 +206,9 @@ class BoundaryMatchingNetwork(nn.Module):
         self.feat_dim = cfg.DATA.FEATURE_DIM
         self.temporal_dim = cfg.DATA.TEMPORAL_DIM
 
-        self.hidden_dim_1d = 256
-        self.hidden_dim_2d = 128
-        self.hidden_dim_3d = 512
+        self.hidden_dim_1d = cfg.MODEL.HIDDEN_DIM_1D
+        self.hidden_dim_2d = cfg.MODEL.HIDDEN_DIM_2D
+        self.hidden_dim_3d = cfg.MODEL.HIDDEN_DIM_3D
 
         self.sample_mask = self._get_interp1d_mask(self.temporal_dim, self.num_sample, self.num_sample_perbin)
 
