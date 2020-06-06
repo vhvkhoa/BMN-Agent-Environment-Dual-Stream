@@ -5,7 +5,7 @@ _C = CfgNode()
 
 _C.GPU_IDS = [0]
 _C.MODE = 'train'
-_C.USE_ENV = False
+_C.USE_ENV = True
 _C.USE_AGENT = True
 
 _C.TRAIN = CfgNode()
@@ -20,6 +20,9 @@ _C.TRAIN.LOG_DIR = './agent_env_runs/'
 
 _C.VAL = CfgNode()
 _C.VAL.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/val_1.json'
+
+_C.TEST = CfgNode()
+_C.TEST.CHECKPOINT_PATH = '../checkpoints/best_auc.pth'
 
 _C.DATA = CfgNode()
 _C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'

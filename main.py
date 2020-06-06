@@ -226,7 +226,7 @@ def BMN_Train(cfg):
 
     test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="validation"),
                                               batch_size=1, shuffle=False,
-                                              num_workers=1, pin_memory=True, collate_fn=test_collate_fn)
+                                              num_workers=1, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
 
     bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM)
     for epoch in range(cfg.TRAIN.NUM_EPOCHS):
@@ -237,32 +237,46 @@ def BMN_inference(cfg):
     model = EventDetection(cfg)
     model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
     checkpoint = torch.load(os.path.join(cfg.MODEL.CHECKPOINT_DIR, "BMN_best.pth.tar"))
+    print('Loaded model at epoch %d.' % checkpoint['epoch'])
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 
-    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="validation"),
+    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="testing"),
                                               batch_size=1, shuffle=False,
-                                              num_workers=8, pin_memory=True, drop_last=False, collate_fn=train_collate_fn)
+                                              num_workers=1, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
     tscale = cfg.DATA.TEMPORAL_DIM
     with torch.no_grad():
-        for idx, input_data in test_loader:
-            video_name = test_loader.dataset.video_list[idx[0]]
-            input_data = input_data.cuda()
-            confidence_map, start, end = model(input_data)
+        for video_name, env_features, agent_features, agent_masks in tqdm(test_loader):
+            video_name = video_name[0]
+            env_features = env_features.cuda()
+            agent_features = agent_features.cuda()
+            agent_masks = agent_masks.cuda()
+
+            confidence_map, start, end = model(
+                env_features,
+                agent_features,
+                agent_masks
+            )
+
+            confidence_map = confidence_map.detach().cpu().numpy()
+            start = start.detach().cpu().numpy()
+            end = end.detach().cpu().numpy()
 
             # print(start.shape,end.shape,confidence_map.shape)
-            start_scores = start[0].detach().cpu().numpy()
-            end_scores = end[0].detach().cpu().numpy()
-            clr_confidence = (confidence_map[0][1]).detach().cpu().numpy()
-            reg_confidence = (confidence_map[0][0]).detach().cpu().numpy()
+            start_scores = start[0]
+            end_scores = end[0]
+            clr_confidence = (confidence_map[0][1])
+            reg_confidence = (confidence_map[0][0])
 
             max_start = max(start_scores)
             max_end = max(end_scores)
 
+            tscale = len(start_scores)
+
             #########################################################################
             # generate the set of start points and end points
-            start_bins = np.zeros(len(start_scores))
-            start_bins[0] = 1  # [1,0,0...,0,1] 首末两帧
+            start_bins = np.zeros(tscale)
+            start_bins[0] = 1  # [1,0,0...,0,1]
             for idx in range(1, tscale - 1):
                 if start_scores[idx] > start_scores[idx + 1] and start_scores[idx] > start_scores[idx - 1]:
                     start_bins[idx] = 1
@@ -279,7 +293,6 @@ def BMN_inference(cfg):
             #########################################################################
 
             #########################################################################
-            # 遍历起始分界点与结束分界点的组合
             new_props = []
             for idx in range(tscale):
                 for jdx in range(tscale):
@@ -299,7 +312,11 @@ def BMN_inference(cfg):
 
             col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "clr_score", "reg_socre", "score"]
             new_df = pd.DataFrame(new_props, columns=col_name)
-            new_df.to_csv("./output/BMN_results/" + video_name + ".csv", index=False)
+            new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
+
+    print("Post processing start")
+    BMN_post_processing(cfg)
+    print("Post processing finished")
 
 
 def main(cfg):
