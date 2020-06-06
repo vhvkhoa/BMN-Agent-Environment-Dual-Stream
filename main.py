@@ -235,8 +235,8 @@ def BMN_Train(cfg):
 
 def BMN_inference(cfg):
     model = EventDetection(cfg)
-    model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
-    checkpoint = torch.load(os.path.join(cfg.MODEL.CHECKPOINT_DIR, "BMN_best.pth.tar"))
+    model = torch.nn.DataParallel(model, device_ids=cfg.GPU_IDS).cuda()
+    checkpoint = torch.load(cfg.TEST.CHECKPOINT_PATH)
     print('Loaded model at epoch %d.' % checkpoint['epoch'])
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
