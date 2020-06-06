@@ -22,7 +22,7 @@ _C.VAL = CfgNode()
 _C.VAL.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/val_1.json'
 
 _C.TEST = CfgNode()
-_C.TEST.CHECKPOINT_PATH = 'checkpoints_2/best_auc_5.pth'
+_C.TEST.CHECKPOINT_PATH = 'checkpoints/checkpoint_2/best_auc_5.pth'
 
 _C.DATA = CfgNode()
 _C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
