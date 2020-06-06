@@ -241,7 +241,7 @@ def BMN_inference(cfg):
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 
-    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="testing"),
+    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split=cfg.MODE),
                                               batch_size=1, shuffle=False,
                                               num_workers=1, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
     tscale = cfg.DATA.TEMPORAL_DIM
@@ -320,9 +320,9 @@ def BMN_inference(cfg):
 
 
 def main(cfg):
-    if cfg.MODE == "train":
+    if cfg.MODE in ["train", "training"]:
         BMN_Train(cfg)
-    elif cfg.MODE == "inference":
+    else:
         if not os.path.exists("output/BMN_results"):
             os.makedirs("output/BMN_results")
         BMN_inference(cfg)
