@@ -3,15 +3,15 @@ from fvcore.common.config import CfgNode
 
 _C = CfgNode()
 
-_C.GPU_IDS = [0]
-_C.MODE = 'validation'
+_C.GPU_IDS = [0, 1]
+_C.MODE = 'training'
 _C.USE_ENV = True
 _C.USE_AGENT = True
 
 _C.TRAIN = CfgNode()
 _C.TRAIN.NUM_EPOCHS = 10
-_C.TRAIN.BATCH_SIZE = 2
-_C.TRAIN.STEP_PERIOD = 16
+_C.TRAIN.BATCH_SIZE = 4
+_C.TRAIN.STEP_PERIOD = 8
 _C.TRAIN.ATTENTION_STEPS = 1
 _C.TRAIN.LR = 0.0001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ''
