@@ -314,10 +314,6 @@ def BMN_inference(cfg):
             new_df = pd.DataFrame(new_props, columns=col_name)
             new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
 
-    print("Post processing start")
-    BMN_post_processing(cfg)
-    print("Post processing finished")
-
 
 def main(cfg):
     if cfg.MODE in ["train", "training"]:
@@ -327,9 +323,9 @@ def main(cfg):
             os.makedirs("output/BMN_results")
         BMN_inference(cfg)
         print("Post processing start")
-        BMN_post_processing(cfg)
+        BMN_post_processing(cfg, cfg.MODE)
         print("Post processing finished")
-        evaluate_proposals(cfg)
+        # evaluate_proposals(cfg)
 
 
 if __name__ == '__main__':
