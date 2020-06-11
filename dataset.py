@@ -21,28 +21,38 @@ def load_json(file):
 def train_collate_fn(batch):
     b_env_feats, b_agent_feats, b_box_lens, confidence_labels, start_labels, end_labels = zip(*batch)
 
-    # Make new order to inputs by their lengths (long-to-short)
-    b_box_lens = torch.stack(b_box_lens, dim=0)
+    cfg = get_cfg()
+    tmp_dim, feat_dim = cfg.DATA.TEMPORAL_DIM, cfg.DATA.FEATURE_DIM
 
-    max_box_dim = torch.max(b_box_lens).item()
     bsz = len(b_env_feats)
-    tmp_dim, feat_dim = b_env_feats[0].size()
 
     # Reorder inputs by new indices
     confidence_labels = torch.stack(confidence_labels)
     start_labels = torch.stack(start_labels)
     end_labels = torch.stack(end_labels)
-    b_env_feats = torch.stack(b_env_feats)
 
-    # Make padding mask for self-attention
-    b_agent_mask = torch.arange(max_box_dim)[None, None, :] >= b_box_lens[:, :, None]
+    if b_env_feats[0] is not None:
+        b_env_feats = torch.stack(b_env_feats)
+    else:
+        b_env_feats = None
 
-    # Pad agent features at temporal and box dimension
-    pad_b_agent_feats = torch.zeros(bsz, tmp_dim, max_box_dim, feat_dim)
-    for i, temporal_features in enumerate(b_agent_feats):
-        for j, box_features in enumerate(temporal_features):
-            if len(box_features) > 0:
-                pad_b_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
+    # Make new order to inputs by their lengths (long-to-short)
+    if b_agent_feats[0] is not None:
+        b_box_lens = torch.stack(b_box_lens, dim=0)
+
+        max_box_dim = torch.max(b_box_lens).item()
+        # Make padding mask for self-attention
+        b_agent_mask = torch.arange(max_box_dim)[None, None, :] >= b_box_lens[:, :, None]
+
+        # Pad agent features at temporal and box dimension
+        pad_b_agent_feats = torch.zeros(bsz, tmp_dim, max_box_dim, feat_dim)
+        for i, temporal_features in enumerate(b_agent_feats):
+            for j, box_features in enumerate(temporal_features):
+                if len(box_features) > 0:
+                    pad_b_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
+    else:
+        pad_b_agent_feats = None
+        b_agent_mask = None
 
     return b_env_feats, pad_b_agent_feats, b_agent_mask, confidence_labels, start_labels, end_labels
 
@@ -50,24 +60,35 @@ def train_collate_fn(batch):
 def test_collate_fn(batch):
     video_ids, b_env_feats, b_agent_feats, b_box_lens = zip(*batch)
 
-    # Make new order to inputs by their lengths (long-to-short)
-    b_box_lens = torch.stack(b_box_lens, dim=0)
+    cfg = get_cfg()
+    tmp_dim, feat_dim = cfg.DATA.TEMPORAL_DIM, cfg.DATA.FEATURE_DIM
 
-    max_box_dim = torch.max(b_box_lens).item()
     bsz = len(b_env_feats)
     tmp_dim, feat_dim = b_env_feats[0].size()
 
-    b_env_feats = torch.stack(b_env_feats)
+    if b_env_feats[0] is not None:
+        b_env_feats = torch.stack(b_env_feats)
+    else:
+        b_env_feats = None
 
-    # Make padding mask for self-attention
-    b_agent_mask = torch.arange(max_box_dim)[None, None, :] >= b_box_lens[:, :, None]
+    if b_agent_feats[0] is not None:
+        # Make new order to inputs by their lengths (long-to-short)
+        b_box_lens = torch.stack(b_box_lens, dim=0)
 
-    # Pad agent features at temporal and box dimension
-    pad_b_agent_feats = torch.zeros(bsz, tmp_dim, max_box_dim, feat_dim)
-    for i, temporal_features in enumerate(b_agent_feats):
-        for j, box_features in enumerate(temporal_features):
-            if len(box_features) > 0:
-                pad_b_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
+        max_box_dim = torch.max(b_box_lens).item()
+
+        # Make padding mask for self-attention
+        b_agent_mask = torch.arange(max_box_dim)[None, None, :] >= b_box_lens[:, :, None]
+
+        # Pad agent features at temporal and box dimension
+        pad_b_agent_feats = torch.zeros(bsz, tmp_dim, max_box_dim, feat_dim)
+        for i, temporal_features in enumerate(b_agent_feats):
+            for j, box_features in enumerate(temporal_features):
+                if len(box_features) > 0:
+                    pad_b_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
+    else:
+        pad_b_agent_feats = None
+        b_agent_mask = None
 
     return video_ids, b_env_feats, pad_b_agent_feats, b_agent_mask
 
@@ -80,6 +101,9 @@ class VideoDataSet(Dataset):
         self.temporal_gap = 1. / self.temporal_dim
         self.env_feature_dir = cfg.DATA.ENV_FEATURE_DIR
         self.agent_feature_dir = cfg.DATA.AGENT_FEATURE_DIR
+
+        self.use_env = cfg.USE_ENV
+        self.use_agent = cfg.USE_AGENT
 
         if split == 'training':
             # self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
@@ -143,9 +167,12 @@ class VideoDataSet(Dataset):
         T: number of timestamps
         F: feature size
         '''
-        env_features = load_json(os.path.join(self.env_feature_dir, video_name + '.json'))['video_features']
-        env_segments = [env['segment'] for env in env_features]
-        env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
+        if self.use_env == True:
+            env_features = load_json(os.path.join(self.env_feature_dir, video_name + '.json'))['video_features']
+            env_segments = [env['segment'] for env in env_features]
+            env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
+        else:
+            env_features = None
 
         '''
         Read agents features at every timestamp
@@ -154,14 +181,19 @@ class VideoDataSet(Dataset):
         B: max number of bounding boxes
         F: feature size
         '''
-        agent_features = load_json(os.path.join(self.agent_feature_dir, video_name + '.json'))['video_features']
-        agent_segments = [feature['segment'] for feature in agent_features]
-        agent_features = [feature['features'] for feature in agent_features]
+        if self.use_agent == True:
+            agent_features = load_json(os.path.join(self.agent_feature_dir, video_name + '.json'))['video_features']
+            agent_segments = [feature['segment'] for feature in agent_features]
+            agent_features = [feature['features'] for feature in agent_features]
+            box_lengths = torch.tensor([len(x) for x in agent_features])
+        else:
+            agent_features = None
+            box_lengths = None
 
-        assert env_segments == agent_segments and len(env_segments) == 100, 'Two streams must have 100 segments.'
+        # assert env_segments == agent_segments and len(env_segments) == 100, 'Two streams must have 100 segments.'
+
 
         # Create and pad agent_box_lengths if train
-        box_lengths = torch.tensor([len(x) for x in agent_features])
 
         return env_features, agent_features, box_lengths
 

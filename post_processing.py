@@ -89,7 +89,10 @@ def video_post_process(cfg, video_list, video_dict):
 def standardize_results(video_dict):
     result_dict = {
         'version': 'ACTIVITY_NET_1.3',
-        'external_data': [],
+        'external_data': {
+            'used': 'true',
+            'details': 'Backbone 3D Network are trained on Kinetics training set.'
+        },
         'results': dict(),
     }
 
