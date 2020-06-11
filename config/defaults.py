@@ -3,15 +3,15 @@ from fvcore.common.config import CfgNode
 
 _C = CfgNode()
 
-_C.GPU_IDS = [0]
-_C.MODE = 'testing'
+_C.GPU_IDS = [0, 1]
+_C.MODE = 'training'
 _C.USE_ENV = True
-_C.USE_AGENT = True
+_C.USE_AGENT = False
 
 _C.TRAIN = CfgNode()
 _C.TRAIN.NUM_EPOCHS = 10
-_C.TRAIN.BATCH_SIZE = 4
-_C.TRAIN.STEP_PERIOD = 8
+_C.TRAIN.BATCH_SIZE = 8
+_C.TRAIN.STEP_PERIOD = 4
 _C.TRAIN.ATTENTION_STEPS = 1
 _C.TRAIN.LR = 0.0001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ''
@@ -31,7 +31,7 @@ _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/new_agent_features/'
 _C.DATA.RESULT_PATH = './results/results.json'
 _C.DATA.FIGURE_PATH = './results/result_figure.jpg'
 _C.DATA.TEMPORAL_DIM = 100
-_C.DATA.FEATURE_DIM = 2304
+_C.DATA.FEATURE_DIM = 400
 _C.DATA.TARGET_FPS = 30
 _C.DATA.SAMPLING_RATE = 16
 
