@@ -26,7 +26,7 @@ _C.TEST.CHECKPOINT_PATH = 'checkpoints/checkpoint_2/best_auc_5.pth'
 
 _C.DATA = CfgNode()
 _C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
-_C.DATA.ENV_FEATURE_DIR = '../datasets/activitynet/new_env_features/'
+_C.DATA.ENV_FEATURE_DIR = '../datasets/activitynet/env_outputs/'
 _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/new_agent_features/'
 _C.DATA.RESULT_PATH = './results/results.json'
 _C.DATA.FIGURE_PATH = './results/result_figure.jpg'
