@@ -167,9 +167,9 @@ class VideoDataSet(Dataset):
         T: number of timestamps
         F: feature size
         '''
-        if self.use_env == True:
+        if self.use_env is not True:
             env_features = load_json(os.path.join(self.env_feature_dir, video_name + '.json'))['video_features']
-            env_segments = [env['segment'] for env in env_features]
+            # env_segments = [env['segment'] for env in env_features]
             env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
         else:
             env_features = None
@@ -181,19 +181,17 @@ class VideoDataSet(Dataset):
         B: max number of bounding boxes
         F: feature size
         '''
-        if self.use_agent == True:
+        if self.use_agent is not True:
             agent_features = load_json(os.path.join(self.agent_feature_dir, video_name + '.json'))['video_features']
-            agent_segments = [feature['segment'] for feature in agent_features]
+            # agent_segments = [feature['segment'] for feature in agent_features]
             agent_features = [feature['features'] for feature in agent_features]
+            # Create and pad agent_box_lengths if train
             box_lengths = torch.tensor([len(x) for x in agent_features])
         else:
             agent_features = None
             box_lengths = None
 
         # assert env_segments == agent_segments and len(env_segments) == 100, 'Two streams must have 100 segments.'
-
-
-        # Create and pad agent_box_lengths if train
 
         return env_features, agent_features, box_lengths
 

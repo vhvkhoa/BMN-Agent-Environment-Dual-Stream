@@ -332,7 +332,9 @@ def main(cfg):
         print("Post processing start")
         BMN_post_processing(cfg, cfg.MODE)
         print("Post processing finished")
-        # evaluate_proposals(cfg)
+
+    if cfg.MODE == 'validation':
+        evaluate_proposals(cfg)
 
 
 if __name__ == '__main__':
