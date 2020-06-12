@@ -167,7 +167,7 @@ class VideoDataSet(Dataset):
         T: number of timestamps
         F: feature size
         '''
-        if self.use_env is not True:
+        if self.use_env is True:
             env_features = load_json(os.path.join(self.env_feature_dir, video_name + '.json'))['video_features']
             # env_segments = [env['segment'] for env in env_features]
             env_features = torch.tensor([feature['features'] for feature in env_features]).float().squeeze(1)
@@ -181,7 +181,7 @@ class VideoDataSet(Dataset):
         B: max number of bounding boxes
         F: feature size
         '''
-        if self.use_agent is not True:
+        if self.use_agent is True:
             agent_features = load_json(os.path.join(self.agent_feature_dir, video_name + '.json'))['video_features']
             # agent_segments = [feature['segment'] for feature in agent_features]
             agent_features = [feature['features'] for feature in agent_features]
