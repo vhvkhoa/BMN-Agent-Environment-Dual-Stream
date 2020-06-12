@@ -255,9 +255,16 @@ def BMN_inference(cfg):
     with torch.no_grad():
         for video_name, env_features, agent_features, agent_masks in tqdm(test_loader):
             video_name = video_name[0]
-            env_features = env_features.cuda()
-            agent_features = agent_features.cuda()
-            agent_masks = agent_masks.cuda()
+            if cfg.USE_ENV:
+                env_features = env_features.cuda()
+            else:
+                env_features = None
+            if cfg.USE_AGENT:
+                agent_features = agent_features.cuda()
+                agent_masks = agent_masks.cuda()
+            else:
+                agent_features = None
+                agent_masks = None
 
             confidence_map, start, end = model(
                 env_features,
