@@ -31,7 +31,7 @@ _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/new_agent_features/'
 _C.DATA.RESULT_PATH = './results/results.json'
 _C.DATA.FIGURE_PATH = './results/result_figure.jpg'
 _C.DATA.TEMPORAL_DIM = 100
-_C.DATA.FEATURE_DIM = 2048
+_C.DATA.FEATURE_DIM = 2304
 _C.DATA.TARGET_FPS = 30
 _C.DATA.SAMPLING_RATE = 16
 
