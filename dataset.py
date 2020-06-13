@@ -64,7 +64,6 @@ def test_collate_fn(batch):
     tmp_dim, feat_dim = cfg.DATA.TEMPORAL_DIM, cfg.DATA.FEATURE_DIM
 
     bsz = len(b_env_feats)
-    tmp_dim, feat_dim = b_env_feats[0].size()
 
     if b_env_feats[0] is not None:
         b_env_feats = torch.stack(b_env_feats)
