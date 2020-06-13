@@ -3,10 +3,10 @@ from fvcore.common.config import CfgNode
 
 _C = CfgNode()
 
-_C.GPU_IDS = [0, 1]
-_C.MODE = 'training'
-_C.USE_ENV = True
-_C.USE_AGENT = False
+_C.GPU_IDS = [0]
+_C.MODE = 'validation'
+_C.USE_ENV = False
+_C.USE_AGENT = True
 
 _C.TRAIN = CfgNode()
 _C.TRAIN.NUM_EPOCHS = 10
@@ -22,7 +22,7 @@ _C.VAL = CfgNode()
 _C.VAL.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/val_1.json'
 
 _C.TEST = CfgNode()
-_C.TEST.CHECKPOINT_PATH = 'checkpoints/checkpoint_2/best_auc_5.pth'
+_C.TEST.CHECKPOINT_PATH = 'checkpoints/checkpoint_1/best_auc.pth'
 
 _C.DATA = CfgNode()
 _C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
