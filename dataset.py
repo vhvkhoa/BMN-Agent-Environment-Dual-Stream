@@ -158,7 +158,7 @@ class VideoDataSet(Dataset):
             return self.video_ids[index], env_features, agent_features, box_lengths
 
     def _load_item(self, index):
-        video_name = 'v_' + self.video_ids[index]
+        video_name = self.video_ids[index]
 
         '''
         Read environment features at every timestamp
