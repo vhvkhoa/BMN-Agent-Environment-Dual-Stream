@@ -44,6 +44,7 @@ dataset = defaultdict(dict)
 for name in tqdm(sorted(glob.glob(DATA_PATH + "/*"))):
     cap = cv2.VideoCapture(name)
     length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    print(name, length, length // f_scale)
     assert length % f_scale == 0, 'Video length %d is not divided by %d.' % (length, f_scale)
     fps = cap.get(cv2.CAP_PROP_FPS)
     assert fps == 30, 'Video fps should be 30. %d found.' % fps
