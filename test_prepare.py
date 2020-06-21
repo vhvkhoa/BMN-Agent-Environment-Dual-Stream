@@ -34,10 +34,7 @@ VolleyballSpiking = 97
 
 WFEATURE = 16
 WSCALE = 128
-WSTRIDE = 128
 
-f_feature = WFEATURE
-f_stride = WSTRIDE * WFEATURE
 f_scale = WSCALE * WFEATURE
 
 dataset = defaultdict(dict)
@@ -50,7 +47,7 @@ for name in tqdm(sorted(glob.glob(DATA_PATH + "/*"))):
     fps = cap.get(cv2.CAP_PROP_FPS)
     assert fps == 30, 'Video fps should be 30. %d found.' % fps
 
-    for i in range(0, length, f_stride):
+    for i in range(0, length // f_scale):
         size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         writer = cv2.VideoWriter(SAVE_PATH + "/{}-{}.mp4".format(name, i), fourcc, fps, size)

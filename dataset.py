@@ -94,7 +94,10 @@ def test_collate_fn(batch):
 
 class VideoDataSet(Dataset):
     def __init__(self, cfg, split='training'):
-        self.split = split
+        if isinstance(split, str):
+            self.split = [split]
+        elif isinstance(split, list):
+            self.split = split
         self.video_anno_path = cfg.DATA.ANNOTATION_FILE
         self.temporal_dim = cfg.DATA.TEMPORAL_DIM
         self.temporal_gap = 1. / self.temporal_dim
@@ -104,7 +107,7 @@ class VideoDataSet(Dataset):
         self.use_env = cfg.USE_ENV
         self.use_agent = cfg.USE_AGENT
 
-        if split == 'training':
+        if 'training' in self.split:
             # self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
             self._get_match_map()
 
@@ -138,7 +141,7 @@ class VideoDataSet(Dataset):
         self.video_ids = []
 
         for video_id, annotation in annotations.items():
-            if annotation['subset'] != self.split:
+            if annotation['subset'] not in self.split:
                 continue
             self.event_dict[video_id] = {
                 'duration': annotation['duration'],
@@ -151,7 +154,7 @@ class VideoDataSet(Dataset):
 
     def __getitem__(self, index):
         env_features, agent_features, box_lengths = self._load_item(index)
-        if self.split == 'training':
+        if 'training' in self.split:
             match_score_start, match_score_end, confidence_score = self._get_train_label(index)
             return env_features, agent_features, box_lengths, confidence_score, match_score_start, match_score_end
         else:

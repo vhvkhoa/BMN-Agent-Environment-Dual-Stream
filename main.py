@@ -227,11 +227,11 @@ def BMN_Train(cfg):
     assert not os.path.isdir(checkpoint_dir), 'Checkpoint directory %s has already been created.' % checkpoint_dir
     os.makedirs(checkpoint_dir)
 
-    train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="training"),
+    train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split=["training", "validation"]),
                                                batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                                num_workers=0, pin_memory=True, collate_fn=train_collate_fn)
 
-    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="validation"),
+    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="testing"),
                                               batch_size=1, shuffle=False,
                                               num_workers=0, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
 
