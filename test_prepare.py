@@ -5,8 +5,8 @@ import json
 from collections import defaultdict
 from tqdm import tqdm
 
-DATA_PATH = "rescaled"
-SAVE_PATH = "cropped_rescaled"
+DATA_PATH = "test_rescaled"
+SAVE_PATH = "test_cropped_rescaled"
 
 """ Actions
 Ambiguous = 0
