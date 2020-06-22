@@ -130,6 +130,7 @@ class ANETproposal(object):
         activity_index : dict
             Dictionary containing class index.
         """
+        print(ground_truth_filename)
         with open(ground_truth_filename, 'r') as fobj:
             data = json.load(fobj)
         # Checking format
