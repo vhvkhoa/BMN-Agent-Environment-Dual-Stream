@@ -332,6 +332,7 @@ def BMN_inference(cfg):
 def main(cfg):
     if cfg.MODE in ["train", "training"]:
         BMN_Train(cfg)
+    '''
     else:
         if not os.path.exists("output/BMN_results"):
             os.makedirs("output/BMN_results")
@@ -339,6 +340,7 @@ def main(cfg):
         print("Post processing start")
         BMN_post_processing(cfg, cfg.MODE)
         print("Post processing finished")
+    '''
 
     if cfg.MODE == 'validation':
         evaluate_proposals(cfg)
