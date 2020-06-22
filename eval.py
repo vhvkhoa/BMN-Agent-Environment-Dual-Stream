@@ -62,7 +62,7 @@ def evaluate_proposals(cfg):
         cfg.VAL.VIDEO_ANNOTATION_FILE,
         cfg.DATA.RESULT_PATH,
         max_avg_nr_proposals=100,
-        tiou_thresholds=np.linspace(0.5, 0.95, 10),
+        tiou_thresholds=np.linspace(0.5, 1.0, 10),
         subset='validation')
 
     plot_metric(cfg, uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid)
