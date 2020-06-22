@@ -152,7 +152,6 @@ class ANETproposal(object):
                 t_start_lst.append(ann['segment'][0])
                 t_end_lst.append(ann['segment'][1])
                 label_lst.append(activity_index[ann['label']])
-        print(video_lst)
 
         ground_truth = pd.DataFrame({'video-id': video_lst,
                                      't-start': t_start_lst,
@@ -252,6 +251,8 @@ def average_recall_vs_avg_nr_proposals(ground_truth, proposals,
 
     # Get list of videos.
     video_lst = ground_truth['video-id'].unique()
+    print(video_lst)
+    print('video_test_0000444' in video_lst)
 
     if not max_avg_nr_proposals:
         max_avg_nr_proposals = float(proposals.shape[0]) / video_lst.shape[0]
