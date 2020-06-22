@@ -63,7 +63,7 @@ def evaluate_proposals(cfg):
         cfg.DATA.RESULT_PATH,
         max_avg_nr_proposals=100,
         tiou_thresholds=np.linspace(0.5, 1.0, 10),
-        subset='validation')
+        subset='testing')
 
     plot_metric(cfg, uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid)
     print("AR@1 is \t", np.mean(uniform_recall_valid[:, 0]))
