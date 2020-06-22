@@ -184,7 +184,7 @@ def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
             new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
 
     print("Post processing start")
-    BMN_post_processing(cfg)
+    BMN_post_processing(cfg, split='testing')
     print("Post processing finished")
     auc_score = evaluate_proposals(cfg)
     writer.add_scalar('AUC', auc_score, epoch)
@@ -332,15 +332,13 @@ def BMN_inference(cfg):
 def main(cfg):
     if cfg.MODE in ["train", "training"]:
         BMN_Train(cfg)
-    '''
     else:
         if not os.path.exists("output/BMN_results"):
             os.makedirs("output/BMN_results")
         BMN_inference(cfg)
         print("Post processing start")
-        BMN_post_processing(cfg, cfg.MODE)
+        BMN_post_processing(cfg, split='testing')
         print("Post processing finished")
-    '''
 
     if cfg.MODE == 'validation':
         evaluate_proposals(cfg)
