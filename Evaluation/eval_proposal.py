@@ -152,6 +152,7 @@ class ANETproposal(object):
                 t_start_lst.append(ann['segment'][0])
                 t_end_lst.append(ann['segment'][1])
                 label_lst.append(activity_index[ann['label']])
+        print(video_lst)
 
         ground_truth = pd.DataFrame({'video-id': video_lst,
                                      't-start': t_start_lst,
