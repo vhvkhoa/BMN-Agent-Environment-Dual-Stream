@@ -91,7 +91,7 @@ def video_post_process(cfg, video_list, video_dict, split='validation'):
             result_dict[video_name.split('-')[0]] = proposal_list
         else:
             proposal_list += result_dict[video_name.split('-')[0]]
-            proposal_list = sorted(proposal_list, key=lambda x: x['score'])[:100]
+            proposal_list = sorted(proposal_list, key=lambda x: x['score'], reverse=True)[:100]
             result_dict[video_name.split('-')[0]]
 
 
