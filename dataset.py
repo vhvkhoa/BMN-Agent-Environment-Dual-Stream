@@ -142,7 +142,7 @@ class VideoDataSet(Dataset):
 
         for video_id, annotation in annotations.items():
             if annotation['subset'] not in ['training', 'validation']:
-               continue
+                continue
             self.event_dict[video_id] = {
                 'duration': annotation['duration'],
                 'events': annotation['annotations']
