@@ -337,7 +337,7 @@ def main(cfg):
             os.makedirs("output/BMN_results")
         BMN_inference(cfg)
         print("Post processing start")
-        BMN_post_processing(cfg, split='testing')
+        BMN_post_processing(cfg, split=cfg.MODE)
         print("Post processing finished")
 
     if cfg.MODE == 'validation':
