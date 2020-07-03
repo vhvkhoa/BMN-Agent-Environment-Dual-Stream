@@ -22,7 +22,7 @@ _C.VAL = CfgNode()
 _C.VAL.VIDEO_ANNOTATION_FILE = '../datasets/thumos14/test_annotations.json'
 
 _C.TEST = CfgNode()
-_C.TEST.CHECKPOINT_PATH = 'checkpoints/checkpoint_1/best_auc.pth'
+_C.TEST.CHECKPOINT_PATH = 'checkpoints/checkpoint_9/best_auc.pth'
 
 _C.DATA = CfgNode()
 _C.DATA.ANNOTATION_FILE = '../datasets/thumos14/thumos_annotations_test.json'
