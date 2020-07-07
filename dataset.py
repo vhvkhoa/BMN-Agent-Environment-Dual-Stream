@@ -94,10 +94,6 @@ def test_collate_fn(batch):
 
 class VideoDataSet(Dataset):
     def __init__(self, cfg, split='training'):
-        if isinstance(split, str):
-            self.split = [split]
-        elif isinstance(split, list):
-            self.split = split
         self.video_anno_path = cfg.DATA.ANNOTATION_FILE
         self.temporal_dim = cfg.DATA.TEMPORAL_DIM
         self.temporal_gap = 1. / self.temporal_dim
