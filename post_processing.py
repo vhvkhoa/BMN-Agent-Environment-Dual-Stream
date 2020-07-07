@@ -87,15 +87,13 @@ def video_post_process(cfg, video_list, video_dict, split='validation'):
             tmp_proposal["segment"] = [max(0, df.xmin.values[j]) * video_duration + block_id * video_duration,
                                        min(1, df.xmax.values[j]) * video_duration + block_id * video_duration]
             proposal_list.append(tmp_proposal)
-        result_dict[video_name] = proposal_list
-        '''
+
         if video_name.split('-')[0] not in result_dict.keys():
             result_dict[video_name.split('-')[0]] = proposal_list
         else:
             proposal_list += result_dict[video_name.split('-')[0]]
             proposal_list = sorted(proposal_list, key=lambda x: x['score'], reverse=True)[:100]
             result_dict[video_name.split('-')[0]]
-        '''
 
 
 def standardize_results(video_dict, split='validation'):
