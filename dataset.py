@@ -107,7 +107,7 @@ class VideoDataSet(Dataset):
         self.use_env = cfg.USE_ENV
         self.use_agent = cfg.USE_AGENT
 
-        if 'training' in self.split:
+        if 'training' == self.split:
             # self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
             self._get_match_map()
 
