@@ -104,7 +104,7 @@ class VideoDataSet(Dataset):
         self.use_env = cfg.USE_ENV
         self.use_agent = cfg.USE_AGENT
 
-        if self.split == 'training':
+        if split == 'training':
             # self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
             self._get_match_map()
 
@@ -151,14 +151,14 @@ class VideoDataSet(Dataset):
 
     def __getitem__(self, index):
         env_features, agent_features, box_lengths = self._load_item(index)
-        if 'training' in self.split:
+        if self.split == 'training':
             match_score_start, match_score_end, confidence_score = self._get_train_label(index)
             return env_features, agent_features, box_lengths, confidence_score, match_score_start, match_score_end
         else:
             return self.video_ids[index], env_features, agent_features, box_lengths
 
     def _load_item(self, index):
-        video_name = self.video_ids[index]
+        video_name = 'v_' + self.video_ids[index]
 
         '''
         Read environment features at every timestamp
