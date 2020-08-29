@@ -2,7 +2,10 @@
 import numpy as np
 import pandas as pd
 import json
+import pickle
 import multiprocessing as mp
+from tqdm import tqdm
+from collections import defaultdict
 
 from utils import iou_with_anchors
 
@@ -37,7 +40,7 @@ def soft_nms(df, alpha, t1, t2):
     rend = []
     rscore = []
 
-    while len(tscore) > 1 and len(rscore) < 101:
+    while len(tscore) > 1 and len(rscore) < 1001:
         max_index = tscore.index(max(tscore))
         tmp_iou_list = iou_with_anchors(
             np.array(tstart),
@@ -64,7 +67,7 @@ def soft_nms(df, alpha, t1, t2):
 
 
 def video_post_process(cfg, video_list, video_dict, split='validation'):
-    for video_name in video_list:
+    for video_name in tqdm(video_list):
         df = pd.read_csv("./outputs/BMN_results/" + video_name + ".csv")
 
         if len(df) > 1:
@@ -74,50 +77,52 @@ def video_post_process(cfg, video_list, video_dict, split='validation'):
             df = soft_nms(df, snms_alpha, snms_t1, snms_t2)
 
         df = df.sort_values(by="score", ascending=False)
-        video_duration = video_dict[video_name]['duration']
-        if split == 'testing':
-            block_id = int(video_name.split('-')[-1])
-        else:
-            block_id = 0
+        video_duration = video_dict[video_name + '-0']['master_duration']
         proposal_list = []
 
-        for j in range(min(100, len(df))):
+        for j in range(min(1000, len(df))):
             tmp_proposal = {}
             tmp_proposal["score"] = df.score.values[j]
-            tmp_proposal["segment"] = [max(0, df.xmin.values[j]) * video_duration + block_id * video_duration,
-                                       min(1, df.xmax.values[j]) * video_duration + block_id * video_duration]
+            tmp_proposal["segment"] = [max(0, df.xmin.values[j]) * video_duration,
+                                       min(1, df.xmax.values[j]) * video_duration]
             proposal_list.append(tmp_proposal)
 
-        if video_name.split('-')[0] not in result_dict.keys():
-            result_dict[video_name.split('-')[0]] = proposal_list
-        else:
-            proposal_list += result_dict[video_name.split('-')[0]]
-            proposal_list = sorted(proposal_list, key=lambda x: x['score'], reverse=True)[:100]
-            result_dict[video_name.split('-')[0]]
+        result_dict[video_name] = proposal_list
 
 
 def standardize_results(video_dict, split='validation'):
-    result_dict = {
-        'version': 'ACTIVITY_NET_1.3',
-        'external_data': {
-            'used': 'true',
-            'details': 'Backbone 3D Network are trained on Kinetics training set.'
-        },
-        'results': dict(),
-    }
-
+    result_dict = {}
     for video_id, results in video_dict.items():
-        result_dict['results'][video_id] = results
+        result_dict[video_id] = np.array([[
+            r['segment'][0],
+            r['segment'][1],
+            r['score']] for r in results
+        ])
     return result_dict
 
 
 def BMN_post_processing(cfg, split='validation'):
     video_dict = getDatasetDict(cfg, split)
     video_list = list(video_dict.keys())  # [:100]
+    video_groups = defaultdict(list)
+    for video_name in video_list:
+        video_groups[video_name.split('-')[0]].append(video_name)
+
+    for group_name in video_groups:
+        video_sequence = sorted(video_groups[group_name], key=lambda x: int(x.split('-')[-1]))
+        video_df = [
+            pd.read_csv('./outputs/BMN_results/' + video_name + '.csv')
+            for video_name in video_sequence
+        ]
+        video_df = pd.concat(video_df)
+        video_df.to_csv('./outputs/BMN_results/' + group_name + '.csv', index=False)
+
     global result_dict
     result_dict = mp.Manager().dict()
 
+    video_list = list(video_groups.keys())
     num_videos = len(video_list)
+    print('Number of videos to post-process: ', num_videos)
     num_videos_per_thread = num_videos // cfg.BMN.POST_PROCESS.NUM_THREADS
     processes = []
     for tid in range(cfg.BMN.POST_PROCESS.NUM_THREADS - 1):
@@ -133,5 +138,5 @@ def BMN_post_processing(cfg, split='validation'):
         p.join()
 
     result_dict = standardize_results(dict(result_dict))
-    with open(cfg.DATA.RESULT_PATH, "w") as f:
-        json.dump(result_dict, f)
+    with open(cfg.DATA.RESULT_PATH, "wb") as f:
+        pickle.dump(result_dict, f)

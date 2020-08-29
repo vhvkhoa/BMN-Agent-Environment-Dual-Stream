@@ -3,17 +3,17 @@ from fvcore.common.config import CfgNode
 
 _C = CfgNode()
 
-_C.GPU_IDS = [0]
+_C.GPU_IDS = [0, 1, 2, 3]
 _C.MODE = 'training'
 _C.USE_ENV = True
 _C.USE_AGENT = True
 
 _C.TRAIN = CfgNode()
 _C.TRAIN.NUM_EPOCHS = 10
-_C.TRAIN.BATCH_SIZE = 4
-_C.TRAIN.STEP_PERIOD = 8
+_C.TRAIN.BATCH_SIZE = 16
+_C.TRAIN.STEP_PERIOD = 1
 _C.TRAIN.ATTENTION_STEPS = 1
-_C.TRAIN.LR = 0.0001
+_C.TRAIN.LR = 0.001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ''
 _C.TRAIN.VIDEO_ANNOTATION_FILE = '../datasets/thumos14/thumos_annotations.json'
 _C.TRAIN.LOG_DIR = './agent_env_runs/'
@@ -28,7 +28,8 @@ _C.DATA = CfgNode()
 _C.DATA.ANNOTATION_FILE = '../datasets/thumos14/thumos_annotations.json'
 _C.DATA.ENV_FEATURE_DIR = '../datasets/thumos14/env_features/'
 _C.DATA.AGENT_FEATURE_DIR = '../datasets/thumos14/agent_features/'
-_C.DATA.RESULT_PATH = './results/results.json'
+_C.DATA.RESULT_PATH = './results/results.pkl'
+_C.DATA.ANNOTATION_DIR = './THUMOS14_evalkit_20150930/annotation'
 _C.DATA.FIGURE_PATH = './results/result_figure.jpg'
 _C.DATA.TEMPORAL_DIM = 128
 _C.DATA.FEATURE_DIM = 2048

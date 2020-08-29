@@ -118,12 +118,12 @@ class VideoDataSet(Dataset):
         for idx in range(self.temporal_dim):
             tmp_match_window = []
             xmin = self.temporal_gap * idx
-            for jdx in range(1, self.temporal_dim + 1):
+            for jdx in range(1, int(self.temporal_dim / 2) + 1):
                 xmax = xmin + self.temporal_gap * jdx
                 tmp_match_window.append([xmin, xmax])
             match_map.append(tmp_match_window)
-        match_map = np.array(match_map)  # 100x100x2
-        match_map = np.transpose(match_map, [1, 0, 2])  # [0,1] [1,2] [2,3].....[99,100]
+        match_map = np.array(match_map)  # 128x64x2
+        match_map = np.transpose(match_map, [1, 0, 2])  # [0,1] [1,2] [2,3].....[99,100] # 64x128x2
         match_map = np.reshape(match_map, [-1, 2])  # [0,2] [1,3] [2,4].....[99,101]   # duration x start
         self.match_map = match_map
 
@@ -212,7 +212,7 @@ class VideoDataSet(Dataset):
             tmp_gt_iou_map = iou_with_anchors(
                 self.match_map[:, 0], self.match_map[:, 1], tmp_start, tmp_end)
             tmp_gt_iou_map = np.reshape(tmp_gt_iou_map,
-                                        [self.temporal_dim, self.temporal_dim])
+                                        [int(self.temporal_dim / 2), self.temporal_dim])
             gt_iou_map.append(tmp_gt_iou_map)
         gt_iou_map = np.array(gt_iou_map)
         gt_iou_map = np.max(gt_iou_map, axis=0)

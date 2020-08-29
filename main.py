@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 from models import EventDetection
 from dataset import VideoDataSet, train_collate_fn, test_collate_fn
 from loss_function import bmn_loss_func, get_mask
-from post_processing import BMN_post_processing
+from post_processing import BMN_post_processing, getDatasetDict
 # from utils import evaluate_proposals
 from eval import evaluate_proposals
 
@@ -92,8 +92,8 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
         writer.add_scalar('PemLoss Classification', period_loss[3], write_step)
         period_loss = [0] * 4
 
-        # if n_iter % 1000 == 0:  # and n_iter != 0:
-        #     evaluate(cfg, test_loader, model, epoch, n_iter)
+        #if n_iter % 1000 == 0:  # and n_iter != 0:
+        #    evaluate(cfg, test_loader, model, epoch, writer, checkpoint_dir)
 
     print(
         "BMN training loss(epoch %d): tem_loss: %.03f, pem class_loss: %.03f, pem reg_loss: %.03f, total_loss: %.03f" % (
@@ -106,10 +106,14 @@ def train_BMN(cfg, train_loader, test_loader, model, optimizer, epoch, bm_mask, 
 
 
 def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
+    annotations = getDatasetDict(cfg, split='testing')
     model.eval()
     with torch.no_grad():
         for video_name, env_features, agent_features, agent_masks in tqdm(data_loader):
             video_name = video_name[0]
+            master_snippet_duration = annotations[video_name]['master_snippet_duration']
+            start_snippet = annotations[video_name]['start_snippet']
+
             if cfg.USE_ENV:
                 env_features = env_features.cuda()
             else:
@@ -163,13 +167,13 @@ def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
 
             #########################################################################
             new_props = []
-            for idx in range(tscale):
+            for idx in range(int(tscale / 2)):
                 for jdx in range(tscale):
                     start_index = jdx
                     end_index = start_index + idx + 1
                     if end_index < tscale and start_bins[start_index] == 1 and end_bins[end_index] == 1:
-                        xmin = start_index / tscale
-                        xmax = end_index / tscale
+                        xmin = (start_index + start_snippet) / master_snippet_duration 
+                        xmax = (end_index + start_snippet) / master_snippet_duration
                         xmin_score = start_scores[start_index]
                         xmax_score = end_scores[end_index]
                         clr_score = clr_confidence[idx, jdx]
@@ -186,8 +190,8 @@ def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
     print("Post processing start")
     BMN_post_processing(cfg, split='testing')
     print("Post processing finished")
-    auc_score = evaluate_proposals(cfg)
-    writer.add_scalar('AUC', auc_score, epoch)
+    average_recall = evaluate_proposals(cfg)
+    writer.add_scalar('AR@100', average_recall, epoch)
 
     if epoch == 0:
         scores = []
@@ -195,14 +199,14 @@ def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
         with open(cfg.MODEL.SCORE_PATH, 'r') as f:
             scores = json.load(f)
 
-    if len(scores) == 0 or auc_score > max(scores):
+    if len(scores) == 0 or average_recall > max(scores):
         state = {
             'epoch': epoch + 1,
             'state_dict': model.state_dict()
         }
-        torch.save(state, os.path.join(checkpoint_dir, "best_%s.pth" % 'auc'))
+        torch.save(state, os.path.join(checkpoint_dir, "best_%s.pth" % 'AR@100'))
 
-    scores.append(auc_score)
+    scores.append(average_recall)
 
     with open(cfg.MODEL.SCORE_PATH, 'w') as f:
         json.dump(scores, f)

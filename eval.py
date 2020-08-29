@@ -1,74 +1,83 @@
 # -*- coding: utf-8 -*-
-import sys
-sys.path.append('./Evaluation')
-from eval_proposal import ANETproposal
+import json
 import matplotlib.pyplot as plt
 import numpy as np
+from evaluation import prop_eval
+import pandas as pd
+import requests
+import pickle
+import io
+# from oct2py import octave
 
 
+# octave.addpath('THUMOS14_evalkit_20150930')
+
+
+'''
+def standardize_results(video_dict, split='validation'):
+    results = []
+    for video_id, proposals in video_dict.items():
+        for proposal in proposals:
+            result_row = ' '.join([str(x) for x in [video_id] + proposal['segment'] + [proposal['score']]])
+            results.append(result_row)
+    return '\n'.join(results)
+'''
+
+
+'''
 def run_evaluation(ground_truth_filename, proposal_filename,
-                   max_avg_nr_proposals=100,
-                   tiou_thresholds=np.linspace(0.5, 0.95, 10),
+                   tiou_thresholds=np.linspace(0.5, 1.0, 11),
                    subset='validation'):
+    recalls = []
+    for threshold in tiou_thresholds:
+        eval_outputs = octave.TH14evalDet(proposal_filename, ground_truth_filename, subset, threshold)
+        recalls.append(eval_outputs)
+        print('Finished ', threshold)
+    average_recall = np.mean(recalls)
 
-    anet_proposal = ANETproposal(ground_truth_filename, proposal_filename,
-                                 tiou_thresholds=tiou_thresholds,
-                                 max_avg_nr_proposals=max_avg_nr_proposals,
-                                 subset=subset, verbose=True, check_status=False)
-    auc_score = anet_proposal.evaluate()
+    return average_recall
+'''
+def run_evaluation(proposal_filename, nr_proposals):
+    frm_nums = pickle.load(open("evaluation/frm_num.pkl", 'rb'))
+    rows = prop_eval.pkl2dataframe(frm_nums, 'evaluation/movie_fps.pkl', proposal_filename)
+    daps_results = pd.DataFrame(rows, columns = ['f-end','f-init','score','video-frames','video-name'])
 
-    recall = anet_proposal.recall
-    average_recall = anet_proposal.avg_recall
-    average_nr_proposals = anet_proposal.proposals_per_video
-
-    return (average_nr_proposals, average_recall, recall, auc_score)
-
-
-def plot_metric(cfg, average_nr_proposals, average_recall, recall, tiou_thresholds=np.linspace(0.5, 0.95, 10)):
-
-    fn_size = 14
-    plt.figure(num=None, figsize=(12, 8))
-    ax = plt.subplot(1, 1, 1)
-
-    colors = ['k', 'r', 'yellow', 'b', 'c', 'm', 'b', 'pink', 'lawngreen', 'indigo']
-    area_under_curve = np.zeros_like(tiou_thresholds)
-    for i in range(recall.shape[0]):
-        area_under_curve[i] = np.trapz(recall[i], average_nr_proposals)
-
-    for idx, tiou in enumerate(tiou_thresholds[::2]):
-        ax.plot(average_nr_proposals, recall[2 * idx, :], color=colors[idx + 1],
-                label="tiou=[" + str(tiou) + "], area=" + str(int(area_under_curve[2 * idx] * 100) / 100.),
-                linewidth=4, linestyle='--', marker=None)
-    # Plots Average Recall vs Average number of proposals.
-    ax.plot(average_nr_proposals, average_recall, color=colors[0],
-            label="tiou = 0.5:0.05:0.95," + " area=" + str(int(np.trapz(average_recall, average_nr_proposals) * 100) / 100.),
-            linewidth=4, linestyle='-', marker=None)
-
-    handles, labels = ax.get_legend_handles_labels()
-    ax.legend([handles[-1]] + handles[:-1], [labels[-1]] + labels[:-1], loc='best')
-
-    plt.ylabel('Average Recall', fontsize=fn_size)
-    plt.xlabel('Average Number of Proposals per Video', fontsize=fn_size)
-    plt.grid(b=True, which="both")
-    plt.ylim([0, 1.0])
-    plt.setp(ax.get_xticklabels(), fontsize=fn_size)
-    plt.setp(ax.get_yticklabels(), fontsize=fn_size)
-    # plt.show()
-    plt.savefig(cfg.DATA.FIGURE_PATH)
+    # Retrieves and loads Thumos14 test set ground-truth.
+    ground_truth_url = ('https://gist.githubusercontent.com/cabaf/'
+                        'ed34a35ee4443b435c36de42c4547bd7/raw/'
+                        '952f17b9cdc6aa4e6d696315ba75091224f5de97/'
+                        'thumos14_test_groundtruth.csv')
+    s = requests.get(ground_truth_url).content
+    ground_truth = pd.read_csv(io.StringIO(s.decode('utf-8')),sep=' ')
+    # Computes recall for different tiou thresholds at a fixed average number of proposals.
+    recall, tiou_thresholds = prop_eval.recall_vs_tiou_thresholds(daps_results, ground_truth,
+                                                        nr_proposals=nr_proposals,
+                                                        tiou_thresholds=np.linspace(0.5, 1.0, 11))
+    recall = np.mean(recall)
+    return recall
 
 
-def evaluate_proposals(cfg):
-    uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid, auc_score = run_evaluation(
-        cfg.VAL.VIDEO_ANNOTATION_FILE,
-        cfg.DATA.RESULT_PATH,
-        max_avg_nr_proposals=100,
-        tiou_thresholds=np.linspace(0.5, 1.0, 10),
-        subset='testing')
+def evaluate_proposals(cfg, nr_proposals_list=[50, 100, 200, 500, 1000]):
+    '''
+    with open(cfg.DATA.RESULT_PATH, 'r') as f:
+        proposals_data = json.load(f)
+    '''
+    
+    average_recalls = {}
+    for nr_proposals in nr_proposals_list:
+        '''
+        nr_proposals_data = proposals_data['results'].copy()
+        for video_name in nr_proposals_data.keys():
+            proposals_list = sorted(nr_proposals_data[video_name], key=lambda x: x['score'], reverse=True)
+            nr_proposals_data[video_name] = proposals_list[:nr_proposals]
 
-    plot_metric(cfg, uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid)
-    print("AR@1 is \t", np.mean(uniform_recall_valid[:, 0]))
-    print("AR@5 is \t", np.mean(uniform_recall_valid[:, 4]))
-    print("AR@10 is \t", np.mean(uniform_recall_valid[:, 9]))
-    print("AR@100 is \t", np.mean(uniform_recall_valid[:, -1]))
+        with open('evaluate_submission.txt', 'w') as f:
+            f.write(standardize_results(nr_proposals_data))
+        '''
 
-    return auc_score
+        average_recalls[nr_proposals] = run_evaluation(cfg.DATA.RESULT_PATH, nr_proposals)
+
+    for nr_proposals, average_recall in average_recalls.items():
+        print("AR@%d is %f\t" % (nr_proposals, average_recall))
+
+    return average_recalls[100]

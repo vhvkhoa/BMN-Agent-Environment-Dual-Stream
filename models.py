@@ -272,7 +272,7 @@ class BoundaryMatchingNetwork(nn.Module):
             input_size[0],
             input_size[1],
             self.num_sample,
-            self.temporal_dim,
+            int(self.temporal_dim / 2),
             self.temporal_dim
         )
         return out
@@ -306,7 +306,7 @@ class BoundaryMatchingNetwork(nn.Module):
         mask_mat = []
         for start_index in range(temporal_dim):
             mask_mat_vector = []
-            for duration_index in range(temporal_dim):
+            for duration_index in range(int(temporal_dim / 2)):
                 if start_index + duration_index < temporal_dim:
                     p_xmin = start_index
                     p_xmax = start_index + duration_index
