@@ -184,7 +184,7 @@ def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
             new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
 
     print("Post processing start")
-    BMN_post_processing(cfg, split='testing')
+    BMN_post_processing(cfg)
     print("Post processing finished")
     auc_score = evaluate_proposals(cfg)
     writer.add_scalar('AUC', auc_score, epoch)
@@ -231,7 +231,7 @@ def BMN_Train(cfg):
                                                batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
                                                num_workers=0, pin_memory=True, collate_fn=train_collate_fn)
 
-    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="testing"),
+    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="validation"),
                                               batch_size=1, shuffle=False,
                                               num_workers=0, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
 
@@ -248,7 +248,7 @@ def BMN_inference(cfg):
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 
-    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split='testing'),
+    test_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split=cfg.MODE),
                                               batch_size=1, shuffle=False,
                                               num_workers=0, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
     tscale = cfg.DATA.TEMPORAL_DIM
@@ -337,7 +337,7 @@ def main(cfg):
             os.makedirs("output/BMN_results")
         BMN_inference(cfg)
         print("Post processing start")
-        BMN_post_processing(cfg, split='testing')
+        BMN_post_processing(cfg, cfg.MODE)
         print("Post processing finished")
 
     if cfg.MODE == 'validation':
