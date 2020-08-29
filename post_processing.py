@@ -63,7 +63,7 @@ def soft_nms(df, alpha, t1, t2):
     return newDf
 
 
-def video_post_process(cfg, video_list, video_dict, split='validation'):
+def video_post_process(cfg, video_list, video_dict):
     for video_name in video_list:
         df = pd.read_csv("./outputs/BMN_results/" + video_name + ".csv")
 
@@ -75,28 +75,18 @@ def video_post_process(cfg, video_list, video_dict, split='validation'):
 
         df = df.sort_values(by="score", ascending=False)
         video_duration = video_dict[video_name]['duration']
-        if split == 'testing':
-            block_id = int(video_name.split('-')[-1])
-        else:
-            block_id = 0
         proposal_list = []
 
         for j in range(min(100, len(df))):
             tmp_proposal = {}
             tmp_proposal["score"] = df.score.values[j]
-            tmp_proposal["segment"] = [max(0, df.xmin.values[j]) * video_duration + block_id * video_duration,
-                                       min(1, df.xmax.values[j]) * video_duration + block_id * video_duration]
+            tmp_proposal["segment"] = [max(0, df.xmin.values[j]) * video_duration,
+                                       min(1, df.xmax.values[j]) * video_duration]
             proposal_list.append(tmp_proposal)
-
-        if video_name.split('-')[0] not in result_dict.keys():
-            result_dict[video_name.split('-')[0]] = proposal_list
-        else:
-            proposal_list += result_dict[video_name.split('-')[0]]
-            proposal_list = sorted(proposal_list, key=lambda x: x['score'], reverse=True)[:100]
-            result_dict[video_name.split('-')[0]]
+        result_dict[video_name] = proposal_list
 
 
-def standardize_results(video_dict, split='validation'):
+def standardize_results(video_dict):
     result_dict = {
         'version': 'ACTIVITY_NET_1.3',
         'external_data': {
@@ -122,11 +112,11 @@ def BMN_post_processing(cfg, split='validation'):
     processes = []
     for tid in range(cfg.BMN.POST_PROCESS.NUM_THREADS - 1):
         tmp_video_list = video_list[tid * num_videos_per_thread:(tid + 1) * num_videos_per_thread]
-        p = mp.Process(target=video_post_process, args=(cfg, tmp_video_list, video_dict, split))
+        p = mp.Process(target=video_post_process, args=(cfg, tmp_video_list, video_dict))
         p.start()
         processes.append(p)
     tmp_video_list = video_list[(cfg.BMN.POST_PROCESS.NUM_THREADS - 1) * num_videos_per_thread:]
-    p = mp.Process(target=video_post_process, args=(cfg, tmp_video_list, video_dict, split))
+    p = mp.Process(target=video_post_process, args=(cfg, tmp_video_list, video_dict))
     p.start()
     processes.append(p)
     for p in processes:
