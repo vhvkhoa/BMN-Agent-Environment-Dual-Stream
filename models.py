@@ -178,6 +178,8 @@ class EventDetection(nn.Module):
 
         if env_features is None:
             return self.event_detector(agent_fused_features.permute(0, 2, 1))
+        # fixed_fusion_context = agent_fused_features * 0.4 + env_features * 0.6
+        # return self.event_detector(fixed_fusion_context.permute(0, 2, 1))
 
         env_agent_cat_features = torch.stack([env_features, agent_fused_features], dim=2)
 

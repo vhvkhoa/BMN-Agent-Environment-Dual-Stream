@@ -5,3 +5,7 @@ checkpoints/
 outputs/
 agent_env_runs/
 TH14evalkit/
+THUMOS14_evalkit_20150930/
+*checkpoints/
+*runs/
+evaluation/

@@ -172,7 +172,7 @@ def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
                     start_index = jdx
                     end_index = start_index + idx + 1
                     if end_index < tscale and start_bins[start_index] == 1 and end_bins[end_index] == 1:
-                        xmin = (start_index + start_snippet) / master_snippet_duration 
+                        xmin = (start_index + start_snippet) / master_snippet_duration
                         xmax = (end_index + start_snippet) / master_snippet_duration
                         xmin_score = start_scores[start_index]
                         xmax_score = end_scores[end_index]
@@ -180,12 +180,16 @@ def evaluate(cfg, data_loader, model, epoch, writer, checkpoint_dir):
                         reg_score = reg_confidence[idx, jdx]
                         score = xmin_score * xmax_score * clr_score * reg_score
                         new_props.append([xmin, xmax, xmin_score, xmax_score, clr_score, reg_score, score])
-            new_props = np.stack(new_props)
-            #########################################################################
 
             col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "clr_score", "reg_socre", "score"]
-            new_df = pd.DataFrame(new_props, columns=col_name)
-            new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
+            if len(new_props) > 0:
+                new_props = np.stack(new_props)
+                new_df = pd.DataFrame(new_props, columns=col_name)
+                new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
+            else:
+                with open('./outputs/BMN_results/' + video_name + '.csv', 'w') as f:
+                    f.write(','.join(col_name) + '\n')
+            #########################################################################
 
     print("Post processing start")
     BMN_post_processing(cfg, split='testing')
@@ -246,6 +250,7 @@ def BMN_Train(cfg):
 
 def BMN_inference(cfg):
     model = EventDetection(cfg)
+    annotations = getDatasetDict(cfg, split='testing')
     model = torch.nn.DataParallel(model, device_ids=cfg.GPU_IDS).cuda()
     checkpoint = torch.load(cfg.TEST.CHECKPOINT_PATH)
     print('Loaded model at epoch %d.' % checkpoint['epoch'])
@@ -259,6 +264,8 @@ def BMN_inference(cfg):
     with torch.no_grad():
         for video_name, env_features, agent_features, agent_masks in tqdm(test_loader):
             video_name = video_name[0]
+            master_snippet_duration = annotations[video_name]['master_snippet_duration']
+            start_snippet = annotations[video_name]['start_snippet']
             if cfg.USE_ENV:
                 env_features = env_features.cuda()
             else:
@@ -312,13 +319,13 @@ def BMN_inference(cfg):
 
             #########################################################################
             new_props = []
-            for idx in range(tscale):
+            for idx in range(int(tscale / 2)):
                 for jdx in range(tscale):
                     start_index = jdx
                     end_index = start_index + idx + 1
                     if end_index < tscale and start_bins[start_index] == 1 and end_bins[end_index] == 1:
-                        xmin = start_index / tscale
-                        xmax = end_index / tscale
+                        xmin = (start_index + start_snippet) / master_snippet_duration
+                        xmax = (end_index + start_snippet) / master_snippet_duration
                         xmin_score = start_scores[start_index]
                         xmax_score = end_scores[end_index]
                         clr_score = clr_confidence[idx, jdx]
