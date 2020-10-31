@@ -95,7 +95,7 @@ def test_collate_fn(batch):
 class VideoDataSet(Dataset):
     def __init__(self, cfg, split='training'):
         self.split = split
-        self.video_anno_path = cfg.DATA.ANNOTATION_FILE
+        # self.video_anno_path = cfg.DATA.ANNOTATION_FILE
         self.temporal_dim = cfg.DATA.TEMPORAL_DIM
         self.temporal_gap = 1. / self.temporal_dim
         self.env_feature_dir = cfg.DATA.ENV_FEATURE_DIR
@@ -105,11 +105,11 @@ class VideoDataSet(Dataset):
         self.use_agent = cfg.USE_AGENT
 
         if split == 'training':
-            # self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
+            self.video_anno_path = cfg.TRAIN.ANNOTATION_FILE
             self._get_match_map()
 
-        # if self.split == 'validation':
-        #     self.video_anno_path = cfg.VAL.VIDEO_ANNOTATION_FILE
+        if self.split == 'validation':
+            self.video_anno_path = cfg.VAL.ANNOTATION_FILE
 
         self._get_dataset()
 

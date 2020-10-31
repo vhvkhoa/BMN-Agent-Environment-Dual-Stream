@@ -3,29 +3,29 @@ from fvcore.common.config import CfgNode
 
 _C = CfgNode()
 
-_C.GPU_IDS = [0,1,2,3]
+_C.GPU_IDS = [0, 1]
 _C.MODE = 'validation'
 _C.USE_ENV = True
 _C.USE_AGENT = True
 
 _C.TRAIN = CfgNode()
 _C.TRAIN.NUM_EPOCHS = 10
-_C.TRAIN.BATCH_SIZE = 16
+_C.TRAIN.BATCH_SIZE = 8
 _C.TRAIN.STEP_PERIOD = 1
 _C.TRAIN.ATTENTION_STEPS = 1
 _C.TRAIN.LR = 0.0001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ''
-_C.TRAIN.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/train.json'
+_C.TRAIN.ANNOTATION_FILE = '../datasets/activitynet/annotations/seen+unseen_anet13.json'
 _C.TRAIN.LOG_DIR = './c3d_runs/'
 
 _C.VAL = CfgNode()
-_C.VAL.VIDEO_ANNOTATION_FILE = '../datasets/activitynet/annotations/val_1.json'
+_C.VAL.ANNOTATION_FILE = '../datasets/activitynet/annotations/unseen_anet13.json'
 
 _C.TEST = CfgNode()
-_C.TEST.CHECKPOINT_PATH = 'c3d_checkpoints/checkpoint_3/best_auc.pth'
+_C.TEST.CHECKPOINT_PATH = 'c3d_checkpoints/checkpoint_9/model_7.pth'
 
 _C.DATA = CfgNode()
-_C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
+_C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/unseen_anet13.json'
 _C.DATA.ENV_FEATURE_DIR = '../datasets/activitynet/c3d_env_features/'
 _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/c3d_agent_features/'
 _C.DATA.RESULT_PATH = './results/results.json'

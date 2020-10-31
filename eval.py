@@ -59,7 +59,7 @@ def plot_metric(cfg, average_nr_proposals, average_recall, recall, tiou_threshol
 
 def evaluate_proposals(cfg):
     uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid, auc_score = run_evaluation(
-        cfg.DATA.ANNOTATION_FILE,
+        cfg.VAL.ANNOTATION_FILE,
         cfg.DATA.RESULT_PATH,
         max_avg_nr_proposals=100,
         tiou_thresholds=np.linspace(0.5, 0.95, 10),
@@ -72,3 +72,9 @@ def evaluate_proposals(cfg):
     print("AR@100 is \t", np.mean(uniform_recall_valid[:, -1]))
 
     return auc_score
+
+
+if __name__ == '__main__':
+    from config.defaults import get_cfg
+    cfg = get_cfg()
+    evaluate_proposals(cfg)
