@@ -93,7 +93,7 @@ def standardize_results(video_dict):
             'used': 'true',
             'details': 'Backbone 3D Network are trained on Kinetics training set.'
         },
-        'results': dict(),
+        'results': {},
     }
 
     for video_id, results in video_dict.items():
