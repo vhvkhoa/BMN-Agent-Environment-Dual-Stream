@@ -1,9 +1,7 @@
 import sys
 import os
-import json
 
 from tqdm import tqdm
-import numpy as np
 import pandas as pd
 import torch
 import torch.nn.parallel
@@ -14,7 +12,7 @@ from models import EventDetection
 from dataset import VideoDataSet, train_collate_fn, test_collate_fn
 from loss_function import bmn_loss_func, get_mask
 from post_processing import BMN_post_processing
-# from utils import evaluate_proposals
+from utils import generate_proposals
 from eval import evaluate_proposals
 
 from config.defaults import get_cfg
@@ -33,16 +31,19 @@ class Solver:
             self.model.load_state_dict(checkpoint['state_dict'])
 
         if cfg.MODE in ['train', 'training']:
-            self.optimizer = optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), lr=cfg.TRAIN.LR)
+            self.optimizer = optim.Adam(
+                filter(lambda p: p.requires_grad, self.model.parameters()),
+                lr=cfg.TRAIN.LR,
+                weight_decay=cfg.TRAIN.WEIGHT_DECAY)
 
-    def inference(self, data_loader=None, split=None):
+    def inference(self, data_loader=None, split=None, batch_size=None):
         if data_loader is None:
             data_loader = torch.utils.data.DataLoader(
                 VideoDataSet(cfg, split=split),
-                batch_size=1, shuffle=False,
-                num_workers=0, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
+                batch_size=batch_size, shuffle=False,
+                num_workers=12, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
 
-        tscale = cfg.DATA.TEMPORAL_DIM
+        col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "clr_score", "reg_socre", "score"]
         self.model.eval()
         with torch.no_grad():
             for video_names, env_features, agent_features, agent_masks in tqdm(data_loader):
@@ -52,63 +53,16 @@ class Solver:
                 agent_features = agent_features.cuda() if cfg.USE_AGENT else None
                 agent_masks = agent_masks.cuda() if cfg.USE_AGENT else None
 
-                confidence_map, start, end = self.model(env_features, agent_features, agent_masks)
+                confidence_map, start_map, end_map = self.model(env_features, agent_features, agent_masks)
 
                 confidence_map = confidence_map.cpu().numpy()
-                start = start.cpu().numpy()
-                end = end.cpu().numpy()
+                start_map = start_map.cpu().numpy()
+                end_map = end_map.cpu().numpy()
 
-                # print(start.shape,end.shape,confidence_map.shape)
-                start_scores = start[0]
-                end_scores = end[0]
-                clr_confidence = (confidence_map[0][1])
-                reg_confidence = (confidence_map[0][0])
-
-                max_start = max(start_scores)
-                max_end = max(end_scores)
-
-                tscale = len(start_scores)
-
-                #########################################################################
-                # generate the set of start points and end points
-                start_bins = np.zeros(tscale)
-                start_bins[0] = 1  # [1,0,0...,0,1]
-                for idx in range(1, tscale - 1):
-                    if start_scores[idx] > start_scores[idx + 1] and start_scores[idx] > start_scores[idx - 1]:
-                        start_bins[idx] = 1
-                    elif start_scores[idx] > (0.5 * max_start):
-                        start_bins[idx] = 1
-
-                end_bins = np.zeros(len(end_scores))
-                end_bins[-1] = 1
-                for idx in range(1, tscale - 1):
-                    if end_scores[idx] > end_scores[idx + 1] and end_scores[idx] > end_scores[idx - 1]:
-                        end_bins[idx] = 1
-                    elif end_scores[idx] > (0.5 * max_end):
-                        end_bins[idx] = 1
-                #########################################################################
-
-                #########################################################################
-                new_props = []
-                for idx in range(tscale):
-                    for jdx in range(tscale):
-                        start_index = jdx
-                        end_index = start_index + idx + 1
-                        if end_index < tscale and start_bins[start_index] == 1 and end_bins[end_index] == 1:
-                            xmin = start_index / tscale
-                            xmax = end_index / tscale
-                            xmin_score = start_scores[start_index]
-                            xmax_score = end_scores[end_index]
-                            clr_score = clr_confidence[idx, jdx]
-                            reg_score = reg_confidence[idx, jdx]
-                            score = xmin_score * xmax_score * clr_score * reg_score
-                            new_props.append([xmin, xmax, xmin_score, xmax_score, clr_score, reg_score, score])
-                new_props = np.stack(new_props)
-                #########################################################################
-
-                col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "clr_score", "reg_socre", "score"]
-                new_df = pd.DataFrame(new_props, columns=col_name)
-                new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
+                batch_props = generate_proposals(len(video_names), start_map, end_map, confidence_map)
+                for video_name, new_props in zip(video_names, batch_props):
+                    new_df = pd.DataFrame(new_props, columns=col_name)
+                    new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
 
     def epoch_train(self, data_loader, bm_mask, epoch, writer):
         cfg = self.cfg
@@ -142,7 +96,7 @@ class Solver:
             total_loss = losses[0] / period_size
             total_loss.backward()
 
-            losses = [loss.cpu().detach().numpy() / cfg.TRAIN.STEP_PERIOD for loss in losses]
+            losses = [l.cpu().detach().numpy() / cfg.TRAIN.STEP_PERIOD for l in losses]
             period_losses = [l + pl for l, pl in zip(losses, period_losses)]
 
             if (n_iter + 1) % cfg.TRAIN.STEP_PERIOD != 0 and n_iter != (len(data_loader) - 1):
@@ -166,7 +120,7 @@ class Solver:
                 epoch_losses[0] / (n_iter + 1)))
 
     def evaluate(self, data_loader=None, split=None):
-        self.inference(data_loader, split)
+        self.inference(data_loader, split, self.cfg.VAL.BATCH_SIZE)
 
         print("Post processing start")
         BMN_post_processing(self.cfg)
@@ -189,7 +143,7 @@ class Solver:
 
         eval_loader = torch.utils.data.DataLoader(
             VideoDataSet(cfg, split="validation"),
-            batch_size=1, shuffle=False,
+            batch_size=cfg.VAL.BATCH_SIZE, shuffle=False,
             num_workers=12, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
 
         bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM).cuda()
@@ -217,7 +171,7 @@ def main(cfg):
     elif cfg.MODE in ['validate', 'validation']:
         solver.evaluate(split='validation')
     elif cfg.MODE in ['test', 'testing']:
-        solver.inference(split='testing')
+        solver.inference(split='testing', batch_size=cfg.TEST.BATCH_SIZE)
 
 
 if __name__ == '__main__':
