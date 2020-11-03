@@ -17,7 +17,7 @@ _C.TRAIN.LR = 0.001
 _C.TRAIN.WEIGHT_DECAY = 0.0001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ''
 _C.TRAIN.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
-_C.TRAIN.LOG_DIR = './c3d_runs/'
+_C.TRAIN.LOG_DIR = 'runs/c3d_runs/'
 
 _C.VAL = CfgNode()
 _C.VAL.BATCH_SIZE = 32
@@ -25,23 +25,23 @@ _C.VAL.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.
 
 _C.TEST = CfgNode()
 _C.TEST.BATCH_SIZE = 32
-_C.TEST.CHECKPOINT_PATH = 'c3d_checkpoints/checkpoint_6/best_auc.pth'
+_C.TEST.CHECKPOINT_PATH = 'checkpoints/c3d_checkpoints/checkpoint_6/best_auc.pth'
 _C.TEST.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
 
 _C.DATA = CfgNode()
 _C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
 _C.DATA.ENV_FEATURE_DIR = '../datasets/activitynet/c3d_env_features/'
 _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/c3d_agent_features/'
-_C.DATA.RESULT_PATH = './results/results.json'
-_C.DATA.FIGURE_PATH = './results/result_figure.jpg'
+_C.DATA.RESULT_PATH = 'results/results.json'
+_C.DATA.FIGURE_PATH = 'results/result_figure.jpg'
 _C.DATA.TEMPORAL_DIM = 100
 _C.DATA.FEATURE_DIM = 2048
 _C.DATA.TARGET_FPS = 30
 _C.DATA.SAMPLING_RATE = 16
 
 _C.MODEL = CfgNode()
-_C.MODEL.SCORE_PATH = './c3d_checkpoints/scores.json'
-_C.MODEL.CHECKPOINT_DIR = 'c3d_checkpoints/'
+_C.MODEL.SCORE_PATH = 'checkpoints/c3d_checkpoints/scores.json'
+_C.MODEL.CHECKPOINT_DIR = 'checkpoints/c3d_checkpoints/'
 _C.MODEL.ATTENTION_HEADS = 4
 _C.MODEL.ATTENTION_LAYERS = 1
 _C.MODEL.HIDDEN_DIM_1D = 256  # 256
