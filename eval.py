@@ -14,7 +14,7 @@ def run_evaluation(ground_truth_filename, proposal_filename,
     anet_proposal = ANETproposal(ground_truth_filename, proposal_filename,
                                  tiou_thresholds=tiou_thresholds,
                                  max_avg_nr_proposals=max_avg_nr_proposals,
-                                 subset=subset, verbose=True, check_status=False)
+                                 subset=subset, verbose=True, check_status=True)
     auc_score = anet_proposal.evaluate()
 
     recall = anet_proposal.recall

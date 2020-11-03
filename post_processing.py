@@ -102,6 +102,7 @@ def standardize_results(video_dict):
 
 
 def BMN_post_processing(cfg, split='validation'):
+    print('Start post-processing on {}.'.format(split))
     video_dict = getDatasetDict(cfg, split)
     video_list = list(video_dict.keys())  # [:100]
     global result_dict
@@ -125,3 +126,5 @@ def BMN_post_processing(cfg, split='validation'):
     result_dict = standardize_results(dict(result_dict))
     with open(cfg.DATA.RESULT_PATH, "w") as f:
         json.dump(result_dict, f)
+
+    print('Finished post-processing on {}.'.format(split))

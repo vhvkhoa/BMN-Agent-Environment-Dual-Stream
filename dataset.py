@@ -104,12 +104,14 @@ class VideoDataSet(Dataset):
         self.use_env = cfg.USE_ENV
         self.use_agent = cfg.USE_AGENT
 
-        if split == 'training':
+        if split in ['train', 'training']:
             self.video_anno_path = cfg.TRAIN.ANNOTATION_FILE
             self._get_match_map()
 
-        if self.split == 'validation':
+        elif self.split in ['validation']:
             self.video_anno_path = cfg.VAL.ANNOTATION_FILE
+        elif self.split in ['test', 'testing']:
+            self.video_anno_path = cfg.TEST.ANNOTATION_FILE
 
         self._get_dataset()
 

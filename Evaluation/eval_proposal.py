@@ -3,6 +3,11 @@ import numpy as np
 import pandas as pd
 
 
+def get_blocked_videos(api=None):
+    with open('Evaluation/api.json', 'r') as f:
+        return json.load(f)
+
+
 def interpolated_prec_rec(prec, rec):
     """
     Interpolated AP - VOCdevkit from VOC 2011.

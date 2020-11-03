@@ -64,6 +64,8 @@ class Solver:
                     new_df = pd.DataFrame(new_props, columns=col_name)
                     new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
 
+        BMN_post_processing(self.cfg, split=split)
+
     def epoch_train(self, data_loader, bm_mask, epoch, writer):
         cfg = self.cfg
         self.model.train()
@@ -121,10 +123,6 @@ class Solver:
 
     def evaluate(self, data_loader=None, split=None):
         self.inference(data_loader, split, self.cfg.VAL.BATCH_SIZE)
-
-        print("Post processing start")
-        BMN_post_processing(self.cfg)
-        print("Post processing finished")
         auc_score = evaluate_proposals(self.cfg)
         return auc_score
 

@@ -13,7 +13,7 @@ _C.TRAIN.NUM_EPOCHS = 10
 _C.TRAIN.BATCH_SIZE = 16
 _C.TRAIN.STEP_PERIOD = 1
 _C.TRAIN.ATTENTION_STEPS = 1
-_C.TRAIN.LR = 0.0005
+_C.TRAIN.LR = 0.001
 _C.TRAIN.WEIGHT_DECAY = 0.0001
 _C.TRAIN.CHECKPOINT_FILE_PATH = ''
 _C.TRAIN.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
@@ -25,7 +25,8 @@ _C.VAL.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.
 
 _C.TEST = CfgNode()
 _C.TEST.BATCH_SIZE = 32
-_C.TEST.CHECKPOINT_PATH = 'c3d_checkpoints/checkpoint_9/model_7.pth'
+_C.TEST.CHECKPOINT_PATH = 'c3d_checkpoints/checkpoint_6/best_auc.pth'
+_C.TEST.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
 
 _C.DATA = CfgNode()
 _C.DATA.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
