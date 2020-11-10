@@ -189,10 +189,11 @@ class PostProcessor(object):
             else:
                 flag = False
                 while not flag:
-                    for i in range(self.n_threads):
-                        if not processes[i].is_alive():
-                            processes[i].join()
-                            processes.pop(i)
+                    for j in range(self.n_threads):
+                        if not processes[j].is_alive():
+                            processes[j].join()
+                            processes[j] = mp.Process(target=self.video_post_process, args=(video_name,))
+                            processes[j].start()
                             flag = True
                             break
         for p in processes:
