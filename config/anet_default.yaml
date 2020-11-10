@@ -1,0 +1,31 @@
+MODE: 'validation'
+DATASET: 'anet'
+USE_ENV: True
+USE_AGENT: True
+TRAIN:
+  SPLIT: 'training'
+  NUM_EPOCHS: 10
+  BATCH_SIZE: 16
+  LR: 0.0001
+  ANNOTATION_FILE: '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
+  LOG_DIR: 'runs/c3d_runs/'
+VAL:
+  SPLIT: 'validation'
+  BATCH_SIZE: 32
+  ANNOTATION_FILE: '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
+TEST:
+  SPLIT: 'testing'
+  BATCH_SIZE: 32
+  CHECKPOINT_PATH: 'checkpoints/c3d_checkpoints/checkpoint_6/best_auc.pth'
+  ANNOTATION_FILE: '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
+DATA:
+  ENV_FEATURE_DIR: '../datasets/activitynet/c3d_env_features/'
+  AGENT_FEATURE_DIR: '../datasets/activitynet/c3d_agent_features/'
+  RESULT_PATH: 'results/results.json'
+  FIGURE_PATH: 'results/results.pdf'
+  TEMPORAL_DIM: 100
+  MAX_DURATION: 100
+  FEATURE_DIM: 2048
+MODEL:
+  SCORE_PATH: 'checkpoints/c3d_checkpoints/scores.json'
+  CHECKPOINT_DIR: 'checkpoints/c3d_checkpoints/'

@@ -178,6 +178,8 @@ class EventDetection(nn.Module):
 
         if env_features is None:
             return self.event_detector(agent_fused_features.permute(0, 2, 1))
+        # fixed_fusion_context = agent_fused_features * 0.4 + env_features * 0.6
+        # return self.event_detector(fixed_fusion_context.permute(0, 2, 1))
 
         env_agent_cat_features = torch.stack([env_features, agent_fused_features], dim=2)
 
@@ -205,12 +207,13 @@ class BoundaryMatchingNetwork(nn.Module):
         self.num_sample_perbin = cfg.BMN.NUM_SAMPLES_PER_BIN
         self.feat_dim = cfg.DATA.FEATURE_DIM
         self.temporal_dim = cfg.DATA.TEMPORAL_DIM
+        self.max_duration = cfg.DATA.MAX_DURATION
 
         self.hidden_dim_1d = cfg.MODEL.HIDDEN_DIM_1D
         self.hidden_dim_2d = cfg.MODEL.HIDDEN_DIM_2D
         self.hidden_dim_3d = cfg.MODEL.HIDDEN_DIM_3D
 
-        self.sample_mask = self._get_interp1d_mask(self.temporal_dim, self.num_sample, self.num_sample_perbin)
+        self.sample_mask = self._get_interp1d_mask()
 
         # Base Module
         self.x_1d_b = nn.Sequential(
@@ -272,7 +275,7 @@ class BoundaryMatchingNetwork(nn.Module):
             input_size[0],
             input_size[1],
             self.num_sample,
-            self.temporal_dim,
+            self.max_duration,
             self.temporal_dim
         )
         return out
@@ -301,29 +304,29 @@ class BoundaryMatchingNetwork(nn.Module):
         p_mask = np.stack(p_mask, axis=1)
         return p_mask
 
-    def _get_interp1d_mask(self, temporal_dim, num_sample, num_sample_perbin):
+    def _get_interp1d_mask(self):
         # generate sample mask for each point in Boundary-Matching Map
         mask_mat = []
-        for start_index in range(temporal_dim):
+        for start_index in range(self.temporal_dim):
             mask_mat_vector = []
-            for duration_index in range(temporal_dim):
-                if start_index + duration_index < temporal_dim:
+            for duration_index in range(self.max_duration):
+                if start_index + duration_index < self.temporal_dim:
                     p_xmin = start_index
                     p_xmax = start_index + duration_index
                     center_len = float(p_xmax - p_xmin) + 1
                     sample_xmin = p_xmin - center_len * self.prop_boundary_ratio
                     sample_xmax = p_xmax + center_len * self.prop_boundary_ratio
                     p_mask = self._get_interp1d_bin_mask(
-                        sample_xmin, sample_xmax, temporal_dim, num_sample,
-                        num_sample_perbin)
+                        sample_xmin, sample_xmax, self.temporal_dim, self.num_sample,
+                        self.num_sample_perbin)
                 else:
-                    p_mask = np.zeros([temporal_dim, num_sample])
+                    p_mask = np.zeros([self.temporal_dim, self.num_sample])
                 mask_mat_vector.append(p_mask)
             mask_mat_vector = np.stack(mask_mat_vector, axis=2)
             mask_mat.append(mask_mat_vector)
         mask_mat = np.stack(mask_mat, axis=3)
         mask_mat = mask_mat.astype(np.float32)
-        return nn.Parameter(torch.Tensor(mask_mat).view(temporal_dim, -1), requires_grad=False)
+        return nn.Parameter(torch.Tensor(mask_mat).view(self.temporal_dim, -1), requires_grad=False)
 
 
 if __name__ == '__main__':

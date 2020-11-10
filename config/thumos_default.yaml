@@ -1,0 +1,34 @@
+MODE: 'training'
+DATASET: 'thumos'
+USE_ENV: True
+USE_AGENT: True
+TRAIN:
+  SPLIT: 'training'
+  NUM_EPOCHS: 20
+  BATCH_SIZE: 8
+  LR: 0.001
+  ANNOTATION_FILE: '../datasets/thumos14/thumos_annotations.json'
+  LOG_DIR: 'runs/thumos_c3d_runs/'
+VAL:
+  SPLIT: 'testing'
+  BATCH_SIZE: 32
+  ANNOTATION_FILE: '../datasets/thumos14/thumos_annotations.json'
+TEST:
+  SPLIT: 'testing'
+  BATCH_SIZE: 32
+  CHECKPOINT_PATH: 'checkpoints/thumos_c3d_checkpoints/checkpoint_34/best_AR@100.pth'
+  ANNOTATION_FILE: '../datasets/thumos14/thumos_annotations.json'
+DATA:
+  ENV_FEATURE_DIR: '../datasets/thumos14/env_features/'
+  AGENT_FEATURE_DIR: '../datasets/thumos14/agent_features/'
+  RESULT_PATH: 'results/results.json'
+  TEMPORAL_DIM: 128
+  MAX_DURATION: 64
+  FEATURE_DIM: 2048
+MODEL:
+  SCORE_PATH: 'checkpoints/thumos_c3d_checkpoints/scores.json'
+  CHECKPOINT_DIR: 'checkpoints/thumos_c3d_checkpoints/'
+BMN:
+  POST_PROCESS:
+    MAX_PROPOSALS: 1100
+    NUM_THREADS: 12

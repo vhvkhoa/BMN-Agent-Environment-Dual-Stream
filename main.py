@@ -1,5 +1,6 @@
 import sys
 import os
+import argparse
 
 from tqdm import tqdm
 import pandas as pd
@@ -9,11 +10,12 @@ import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
 from models import EventDetection
-from dataset import VideoDataSet, train_collate_fn, test_collate_fn
+from dataset import VideoDataSet, Collator
 from loss_function import bmn_loss_func, get_mask
-from post_processing import BMN_post_processing
-from utils import generate_proposals
-from eval import evaluate_proposals
+from post_processing import PostProcessor, getDatasetDict
+from utils import ProposalGenerator
+from eval_anet import evaluate_proposals as anet_evaluate
+from eval_thumos import evaluate_proposals as thumos_evaluate
 
 from config.defaults import get_cfg
 
@@ -35,38 +37,17 @@ class Solver:
                 filter(lambda p: p.requires_grad, self.model.parameters()),
                 lr=cfg.TRAIN.LR,
                 weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+            self.train_collator = Collator(cfg, 'train')
+        self.test_collator = Collator(cfg, 'test')
 
-    def inference(self, data_loader=None, split=None, batch_size=None):
-        if data_loader is None:
-            data_loader = torch.utils.data.DataLoader(
-                VideoDataSet(cfg, split=split),
-                batch_size=batch_size, shuffle=False,
-                num_workers=12, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
+        self.temporal_dim = cfg.DATA.TEMPORAL_DIM
+        self.max_duration = cfg.DATA.MAX_DURATION
+        if cfg.DATASET == 'anet':
+            self.evaluate_proposals = anet_evaluate
+        elif cfg.DATASET == 'thumos':
+            self.evaluate_proposals = thumos_evaluate
 
-        col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "clr_score", "reg_socre", "score"]
-        self.model.eval()
-        with torch.no_grad():
-            for video_names, env_features, agent_features, agent_masks in tqdm(data_loader):
-                video_name = video_names[0]
-
-                env_features = env_features.cuda() if cfg.USE_ENV else None
-                agent_features = agent_features.cuda() if cfg.USE_AGENT else None
-                agent_masks = agent_masks.cuda() if cfg.USE_AGENT else None
-
-                confidence_map, start_map, end_map = self.model(env_features, agent_features, agent_masks)
-
-                confidence_map = confidence_map.cpu().numpy()
-                start_map = start_map.cpu().numpy()
-                end_map = end_map.cpu().numpy()
-
-                batch_props = generate_proposals(len(video_names), start_map, end_map, confidence_map)
-                for video_name, new_props in zip(video_names, batch_props):
-                    new_df = pd.DataFrame(new_props, columns=col_name)
-                    new_df.to_csv("./outputs/BMN_results/" + video_name + ".csv", index=False)
-
-        BMN_post_processing(self.cfg, split=split)
-
-    def epoch_train(self, data_loader, bm_mask, epoch, writer):
+    def train_epoch(self, data_loader, bm_mask, epoch, writer):
         cfg = self.cfg
         self.model.train()
         self.optimizer.zero_grad()
@@ -77,16 +58,10 @@ class Solver:
         last_period_start = cfg.TRAIN.STEP_PERIOD * (len(data_loader) // cfg.TRAIN.STEP_PERIOD)
 
         for n_iter, (env_features, agent_features, agent_masks, label_confidence, label_start, label_end) in enumerate(tqdm(data_loader)):
-            if cfg.USE_ENV:
-                env_features = env_features.cuda()
-            else:
-                env_features = None
-            if cfg.USE_AGENT:
-                agent_features = agent_features.cuda()
-                agent_masks = agent_masks.cuda()
-            else:
-                agent_features = None
-                agent_masks = None
+            env_features = env_features.cuda() if cfg.USE_ENV else None
+            agent_features = agent_features.cuda() if cfg.USE_AGENT else None
+            agent_masks = agent_masks.cuda() if cfg.USE_AGENT else None
+
             label_start = label_start.cuda()
             label_end = label_end.cuda()
             label_confidence = label_confidence.cuda()
@@ -121,11 +96,6 @@ class Solver:
                 epoch_losses[3] / (n_iter + 1),
                 epoch_losses[0] / (n_iter + 1)))
 
-    def evaluate(self, data_loader=None, split=None):
-        self.inference(data_loader, split, self.cfg.VAL.BATCH_SIZE)
-        auc_score = evaluate_proposals(self.cfg)
-        return auc_score
-
     def train(self, n_epochs):
         exp_id = max([0] + [int(run.split('_')[-1]) for run in os.listdir(self.cfg.TRAIN.LOG_DIR)]) + 1
         log_dir = os.path.join(self.cfg.TRAIN.LOG_DIR, 'run_' + str(exp_id))
@@ -135,43 +105,90 @@ class Solver:
         os.makedirs(checkpoint_dir)
 
         train_loader = torch.utils.data.DataLoader(
-            VideoDataSet(cfg, split="training"),
-            batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
-            num_workers=12, pin_memory=True, collate_fn=train_collate_fn)
+            VideoDataSet(self.cfg, split=self.cfg.TRAIN.SPLIT),
+            batch_size=self.cfg.TRAIN.BATCH_SIZE, shuffle=True,
+            num_workers=12, pin_memory=True, collate_fn=self.train_collator)
 
         eval_loader = torch.utils.data.DataLoader(
-            VideoDataSet(cfg, split="validation"),
-            batch_size=cfg.VAL.BATCH_SIZE, shuffle=False,
-            num_workers=12, pin_memory=True, drop_last=False, collate_fn=test_collate_fn)
+            VideoDataSet(self.cfg, split=self.cfg.VAL.SPLIT),
+            batch_size=self.cfg.VAL.BATCH_SIZE, shuffle=False,
+            num_workers=12, pin_memory=True, drop_last=False, collate_fn=self.test_collator)
 
-        bm_mask = get_mask(cfg.DATA.TEMPORAL_DIM).cuda()
+        bm_mask = get_mask(self.temporal_dim, self.max_duration).cuda()
         scores = []
         for epoch in range(n_epochs):
-            self.epoch_train(train_loader, bm_mask, epoch, writer)
-            auc_score = self.evaluate(eval_loader)
+            self.train_epoch(train_loader, bm_mask, epoch, writer)
+            score = self.evaluate(eval_loader, self.cfg.VAL.SPLIT)
 
             state = {
                 'epoch': epoch + 1,
+                'score': score,
                 'state_dict': self.model.state_dict()
             }
-            if len(scores) == 0 or auc_score > max(scores):
-                torch.save(state, os.path.join(checkpoint_dir, "best_%s.pth" % 'auc'))
-            torch.save(state, os.path.join(checkpoint_dir, "model_%d.pth" % (epoch + 1)))
+            if len(scores) == 0 or score > max(scores):
+                torch.save(state, os.path.join(checkpoint_dir, "best_{}.pth".format(self.cfg.EVAL_SCORE)))
+            torch.save(state, os.path.join(checkpoint_dir, "model_{}.pth".format(epoch + 1)))
 
-            writer.add_scalar('AUC', auc_score, epoch)
-            scores.append(auc_score)
+            writer.add_scalar(self.cfg.EVAL_SCORE, score, epoch)
+            scores.append(score)
+
+    def evaluate(self, data_loader=None, split=None):
+        self.inference(data_loader, split, self.cfg.VAL.BATCH_SIZE)
+        score = self.evaluate_proposals(self.cfg)  # AUC if dataset=anet, AR@100 if dataset=thumos
+        return score
+
+    def inference(self, data_loader=None, split=None, batch_size=None):
+        annotations = getDatasetDict(self.cfg.VAL.ANNOTATION_FILE, split) if self.cfg.DATASET == 'thumos' else None
+        self.prop_gen = ProposalGenerator(self.temporal_dim, self.max_duration, annotations)
+        self.post_processing = PostProcessor(self.cfg, split)
+        if data_loader is None:
+            data_loader = torch.utils.data.DataLoader(
+                VideoDataSet(self.cfg, split=split),
+                batch_size=batch_size, shuffle=False,
+                num_workers=12, pin_memory=True, drop_last=False, collate_fn=self.test_collator)
+
+        col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "clr_score", "reg_score", "score"]
+        self.model.eval()
+        with torch.no_grad():
+            for video_names, env_features, agent_features, agent_masks in tqdm(data_loader):
+                env_features = env_features.cuda() if self.cfg.USE_ENV else None
+                agent_features = agent_features.cuda() if self.cfg.USE_AGENT else None
+                agent_masks = agent_masks.cuda() if self.cfg.USE_AGENT else None
+
+                confidence_map, start_map, end_map = self.model(env_features, agent_features, agent_masks)
+                confidence_map = confidence_map.cpu().numpy()
+                start_map = start_map.cpu().numpy()
+                end_map = end_map.cpu().numpy()
+
+                batch_props = self.prop_gen(start_map, end_map, confidence_map, video_names)
+                for video_name, new_props in zip(video_names, batch_props):
+                    new_df = pd.DataFrame(new_props, columns=col_name)
+                    new_df.to_feather("./results/outputs/" + video_name + ".feather")
+        self.post_processing()
 
 
-def main(cfg):
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--cfg-file', default=None, type=str, help='Path to YAML config file.')
+    return parser.parse_args()
+
+
+def main(args):
+    cfg = get_cfg()
+    if args.cfg_file:
+        cfg.merge_from_file(args.cfg_file)
+    cfg.freeze()
+
     solver = Solver(cfg)
+
     if cfg.MODE in ["train", "training"]:
         solver.train(cfg.TRAIN.NUM_EPOCHS)
     elif cfg.MODE in ['validate', 'validation']:
-        solver.evaluate(split='validation')
+        solver.evaluate(split=cfg.VAL.SPLIT)
     elif cfg.MODE in ['test', 'testing']:
-        solver.inference(split='testing', batch_size=cfg.TEST.BATCH_SIZE)
+        solver.inference(split=cfg.TEST.SPLIT, batch_size=cfg.TEST.BATCH_SIZE)
 
 
 if __name__ == '__main__':
-    cfg = get_cfg()
-    main(cfg)
+    args = get_args()
+    main(args)

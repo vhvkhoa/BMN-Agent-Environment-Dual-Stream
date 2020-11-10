@@ -18,78 +18,56 @@ def load_json(file):
         return json_data
 
 
-def train_collate_fn(batch):
-    b_env_feats, b_agent_feats, b_box_lens, confidence_labels, start_labels, end_labels = zip(*batch)
+class Collator(object):
+    def __init__(self, cfg, mode):
+        self.is_train = mode in ['train', 'training']
+        if self.is_train:
+            self.batch_names = ['env_feats', 'agent_feats', 'box_lens', 'conf_labels', 'start_labels', 'end_labels']
+            self.label_names = ['conf_labels', 'start_labels', 'end_labels']
+        else:
+            self.batch_names = ['video_ids', 'env_feats', 'agent_feats', 'box_lens']
+            self.label_names = []
+        self.feat_names = ['env_feats', 'agent_feats', 'box_lens']
+        self.tmp_dim = cfg.DATA.TEMPORAL_DIM
+        self.feat_dim = cfg.DATA.FEATURE_DIM
 
-    cfg = get_cfg()
-    tmp_dim, feat_dim = cfg.DATA.TEMPORAL_DIM, cfg.DATA.FEATURE_DIM
+    def process_features(self, bsz, env_feats, agent_feats, box_lens):
+        if env_feats[0] is not None:
+            env_feats = torch.stack(env_feats)
+        else:
+            env_feats = None
 
-    bsz = len(b_env_feats)
-
-    # Reorder inputs by new indices
-    confidence_labels = torch.stack(confidence_labels)
-    start_labels = torch.stack(start_labels)
-    end_labels = torch.stack(end_labels)
-
-    if b_env_feats[0] is not None:
-        b_env_feats = torch.stack(b_env_feats)
-    else:
-        b_env_feats = None
-
-    # Make new order to inputs by their lengths (long-to-short)
-    if b_agent_feats[0] is not None:
-        b_box_lens = torch.stack(b_box_lens, dim=0)
-
-        max_box_dim = torch.max(b_box_lens).item()
-        # Make padding mask for self-attention
-        b_agent_mask = torch.arange(max_box_dim)[None, None, :] >= b_box_lens[:, :, None]
-
-        # Pad agent features at temporal and box dimension
-        pad_b_agent_feats = torch.zeros(bsz, tmp_dim, max_box_dim, feat_dim)
-        for i, temporal_features in enumerate(b_agent_feats):
-            for j, box_features in enumerate(temporal_features):
-                if len(box_features) > 0:
-                    pad_b_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
-    else:
-        pad_b_agent_feats = None
-        b_agent_mask = None
-
-    return b_env_feats, pad_b_agent_feats, b_agent_mask, confidence_labels, start_labels, end_labels
-
-
-def test_collate_fn(batch):
-    video_ids, b_env_feats, b_agent_feats, b_box_lens = zip(*batch)
-
-    cfg = get_cfg()
-    tmp_dim, feat_dim = cfg.DATA.TEMPORAL_DIM, cfg.DATA.FEATURE_DIM
-
-    bsz = len(b_env_feats)
-
-    if b_env_feats[0] is not None:
-        b_env_feats = torch.stack(b_env_feats)
-    else:
-        b_env_feats = None
-
-    if b_agent_feats[0] is not None:
         # Make new order to inputs by their lengths (long-to-short)
-        b_box_lens = torch.stack(b_box_lens, dim=0)
+        if agent_feats[0] is not None:
+            box_lens = torch.stack(box_lens, dim=0)
 
-        max_box_dim = torch.max(b_box_lens).item()
+            max_box_dim = torch.max(box_lens).item()
+            # Make padding mask for self-attention
+            agent_mask = torch.arange(max_box_dim)[None, None, :] >= box_lens[:, :, None]
 
-        # Make padding mask for self-attention
-        b_agent_mask = torch.arange(max_box_dim)[None, None, :] >= b_box_lens[:, :, None]
+            # Pad agent features at temporal and box dimension
+            pad_agent_feats = torch.zeros(bsz, self.tmp_dim, max_box_dim, self.feat_dim)
+            for i, temporal_features in enumerate(agent_feats):
+                for j, box_features in enumerate(temporal_features):
+                    if len(box_features) > 0:
+                        pad_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
+        else:
+            pad_agent_feats = None
+            agent_mask = None
+        return env_feats, pad_agent_feats, agent_mask
 
-        # Pad agent features at temporal and box dimension
-        pad_b_agent_feats = torch.zeros(bsz, tmp_dim, max_box_dim, feat_dim)
-        for i, temporal_features in enumerate(b_agent_feats):
-            for j, box_features in enumerate(temporal_features):
-                if len(box_features) > 0:
-                    pad_b_agent_feats[i, j, :len(box_features)] = torch.tensor(box_features)
-    else:
-        pad_b_agent_feats = None
-        b_agent_mask = None
+    def __call__(self, batch):
+        input_batch = dict(zip(self.batch_names, zip(*batch)))
+        bsz = len(input_batch['env_feats'])
+        output_batch = [] if self.is_train else [input_batch['video_ids']]
 
-    return video_ids, b_env_feats, pad_b_agent_feats, b_agent_mask
+        # Process environment and agent features
+        input_feats = [input_batch[feat_name] for feat_name in self.feat_names]
+        output_batch.extend(self.process_features(bsz, *input_feats))
+
+        for label_name in self.label_names:
+            output_batch.append(torch.stack(input_batch[label_name]))
+        return output_batch
 
 
 class VideoDataSet(Dataset):
@@ -97,6 +75,7 @@ class VideoDataSet(Dataset):
         self.split = split
         # self.video_anno_path = cfg.DATA.ANNOTATION_FILE
         self.temporal_dim = cfg.DATA.TEMPORAL_DIM
+        self.max_duration = cfg.DATA.MAX_DURATION
         self.temporal_gap = 1. / self.temporal_dim
         self.env_feature_dir = cfg.DATA.ENV_FEATURE_DIR
         self.agent_feature_dir = cfg.DATA.AGENT_FEATURE_DIR
@@ -112,6 +91,7 @@ class VideoDataSet(Dataset):
             self.video_anno_path = cfg.VAL.ANNOTATION_FILE
         elif self.split in ['test', 'testing']:
             self.video_anno_path = cfg.TEST.ANNOTATION_FILE
+        self.video_prefix = 'v_' if cfg.DATASET == 'anet' else ''
 
         self._get_dataset()
 
@@ -120,7 +100,7 @@ class VideoDataSet(Dataset):
         for idx in range(self.temporal_dim):
             tmp_match_window = []
             xmin = self.temporal_gap * idx
-            for jdx in range(1, self.temporal_dim + 1):
+            for jdx in range(1, self.max_duration + 1):
                 xmax = xmin + self.temporal_gap * jdx
                 tmp_match_window.append([xmin, xmax])
             match_map.append(tmp_match_window)
@@ -160,7 +140,7 @@ class VideoDataSet(Dataset):
             return self.video_ids[index], env_features, agent_features, box_lengths
 
     def _load_item(self, index):
-        video_name = 'v_' + self.video_ids[index]
+        video_name = self.video_prefix + self.video_ids[index]
 
         '''
         Read environment features at every timestamp
@@ -214,7 +194,7 @@ class VideoDataSet(Dataset):
             tmp_gt_iou_map = iou_with_anchors(
                 self.match_map[:, 0], self.match_map[:, 1], tmp_start, tmp_end)
             tmp_gt_iou_map = np.reshape(tmp_gt_iou_map,
-                                        [self.temporal_dim, self.temporal_dim])
+                                        [self.max_duration, self.temporal_dim])
             gt_iou_map.append(tmp_gt_iou_map)
         gt_iou_map = np.array(gt_iou_map)
         gt_iou_map = np.max(gt_iou_map, axis=0)

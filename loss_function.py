@@ -4,9 +4,9 @@ import numpy as np
 import torch.nn.functional as F
 
 
-def get_mask(tscale):
+def get_mask(tscale, duration):
     bm_mask = []
-    for idx in range(tscale):
+    for idx in range(duration):
         mask_vector = [1 for i in range(tscale - idx)
                        ] + [0 for i in range(idx)]
         bm_mask.append(mask_vector)
