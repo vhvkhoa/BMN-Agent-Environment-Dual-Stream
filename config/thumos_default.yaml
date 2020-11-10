@@ -1,11 +1,12 @@
-MODE: 'training'
+MODE: 'validation'
 DATASET: 'thumos'
 USE_ENV: True
 USE_AGENT: True
 TRAIN:
   SPLIT: 'training'
   NUM_EPOCHS: 20
-  BATCH_SIZE: 8
+  BATCH_SIZE: 16
+  STEP_PERIOD: 2
   LR: 0.001
   ANNOTATION_FILE: '../datasets/thumos14/thumos_annotations.json'
   LOG_DIR: 'runs/thumos_c3d_runs/'
@@ -16,12 +17,12 @@ VAL:
 TEST:
   SPLIT: 'testing'
   BATCH_SIZE: 32
-  CHECKPOINT_PATH: 'checkpoints/thumos_c3d_checkpoints/checkpoint_34/best_AR@100.pth'
+  CHECKPOINT_PATH: 'checkpoints/best_thumos14/best_AR@100.pth'
   ANNOTATION_FILE: '../datasets/thumos14/thumos_annotations.json'
 DATA:
   ENV_FEATURE_DIR: '../datasets/thumos14/env_features/'
   AGENT_FEATURE_DIR: '../datasets/thumos14/agent_features/'
-  RESULT_PATH: 'results/results.json'
+  RESULT_PATH: 'results/results.pkl'
   TEMPORAL_DIM: 128
   MAX_DURATION: 64
   FEATURE_DIM: 2048

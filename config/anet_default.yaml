@@ -1,4 +1,4 @@
-MODE: 'validation'
+MODE: 'training'
 DATASET: 'anet'
 USE_ENV: True
 USE_AGENT: True

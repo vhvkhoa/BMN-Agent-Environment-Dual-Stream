@@ -154,10 +154,8 @@ class PostProcessor(object):
             ]
             proposal_list.append(tmp_proposal)
         self.result_dict[video_name] = proposal_list
-        # self.pbar.update()
 
     def __call__(self):
-        # self.pbar = tqdm(total=len(self.video_list))
         if self.dataset == 'thumos':
             video_lengths = {}
             for group_name, video_sequence in self.video_groups.items():
@@ -168,7 +166,8 @@ class PostProcessor(object):
                 video_df.to_feather('./results/outputs/' + group_name + '.feather')
                 video_lengths[group_name] = len(video_df)
             video_list = sorted(self.video_groups.keys(), key=lambda name: video_lengths[name], reverse=True)
-            #video_list = list(self.video_groups.keys())
+        elif self.dataset == 'anet':
+            video_list = self.video_list
 
         '''
         linspace = np.linspace(0, len(video_list), self.n_threads + 1)
@@ -192,18 +191,12 @@ class PostProcessor(object):
                 while not flag:
                     for i in range(self.n_threads):
                         if not processes[i].is_alive():
+                            processes[i].join()
                             processes.pop(i)
                             flag = True
                             break
-                            
-
-        '''
-        pool = mp.Pool(processes=self.n_threads)
-        pool.imap(self.video_post_process, video_list)
-        pool.close()
-        pool.join()
-        '''
+        for p in processes:
+            p.join()
 
         self.result_dict = self.standardize_results(dict(self.result_dict))
         self.save_result(self.result_path, self.result_dict)
-        # self.pbar.close()
