@@ -135,25 +135,26 @@ class PostProcessor(object):
         newDf['xmax'] = rend
         return newDf
 
-    def video_post_process(self, video_name):
-        df = pd.read_feather("./results/outputs/" + video_name + ".feather")
+    def video_post_process(self, video_list):
+        for video_name in video_list:
+            df = pd.read_feather("./results/outputs/" + video_name + ".feather")
 
-        if len(df) > 1:
-            df = self.soft_nms(df)
+            if len(df) > 1:
+                df = self.soft_nms(df)
 
-        df = df.sort_values(by="score", ascending=False)
-        video_duration = self.get_duration(video_name)
-        proposal_list = []
+            df = df.sort_values(by="score", ascending=False)
+            video_duration = self.get_duration(video_name)
+            proposal_list = []
 
-        for j in range(min(self.max_proposals, len(df))):
-            tmp_proposal = {}
-            tmp_proposal["score"] = df.score.values[j]
-            tmp_proposal["segment"] = [
-                max(0, df.xmin.values[j]) * video_duration,
-                min(1, df.xmax.values[j]) * video_duration
-            ]
-            proposal_list.append(tmp_proposal)
-        self.result_dict[video_name] = proposal_list
+            for j in range(min(self.max_proposals, len(df))):
+                tmp_proposal = {}
+                tmp_proposal["score"] = df.score.values[j]
+                tmp_proposal["segment"] = [
+                    max(0, df.xmin.values[j]) * video_duration,
+                    min(1, df.xmax.values[j]) * video_duration
+                ]
+                proposal_list.append(tmp_proposal)
+            self.result_dict[video_name] = proposal_list
 
     def __call__(self):
         if self.dataset == 'thumos':
@@ -166,38 +167,37 @@ class PostProcessor(object):
                 video_df.to_feather('./results/outputs/' + group_name + '.feather')
                 video_lengths[group_name] = len(video_df)
             video_list = sorted(self.video_groups.keys(), key=lambda name: video_lengths[name], reverse=True)
+
+            processes = []
+            for video_name in tqdm(video_list):
+                if len(processes) < self.n_threads:
+                    processes.append(mp.Process(target=self.video_post_process, args=([video_name],)))
+                    processes[-1].start()
+                else:
+                    process_done = False
+                    while not process_done:
+                        for j in range(self.n_threads):
+                            if not processes[j].is_alive():
+                                processes[j].join()
+                                processes[j] = mp.Process(target=self.video_post_process, args=([video_name],))
+                                processes[j].start()
+                                process_done = True
+                                break
+            for p in processes:
+                p.join()
+
         elif self.dataset == 'anet':
             video_list = self.video_list
+            linspace = np.linspace(0, len(video_list), self.n_threads + 1)
+            thrd_segms = [(int(linspace[i]), int(linspace[i + 1])) for i in range(self.n_threads)]
 
-        '''
-        linspace = np.linspace(0, len(video_list), self.n_threads + 1)
-        thrd_segms = [(int(linspace[i]), int(linspace[i + 1])) for i in range(self.n_threads)]
-
-        processes = []
-        for s_thrd, e_thrd in thrd_segms:
-            tmp_video_list = video_list[s_thrd:e_thrd]
-            processes.append(mp.Process(target=self.video_post_process, args=(tmp_video_list,)))
-            processes[-1].start()
-        for p in processes:
-            p.join()
-        '''
-        processes = []
-        for video_name in tqdm(video_list):
-            if len(processes) < self.n_threads:
-                processes.append(mp.Process(target=self.video_post_process, args=(video_name,)))
+            processes = []
+            for s_thrd, e_thrd in thrd_segms:
+                tmp_video_list = video_list[s_thrd:e_thrd]
+                processes.append(mp.Process(target=self.video_post_process, args=(tmp_video_list,)))
                 processes[-1].start()
-            else:
-                flag = False
-                while not flag:
-                    for j in range(self.n_threads):
-                        if not processes[j].is_alive():
-                            processes[j].join()
-                            processes[j] = mp.Process(target=self.video_post_process, args=(video_name,))
-                            processes[j].start()
-                            flag = True
-                            break
-        for p in processes:
-            p.join()
+            for p in processes:
+                p.join()
 
         self.result_dict = self.standardize_results(dict(self.result_dict))
         self.save_result(self.result_path, self.result_dict)

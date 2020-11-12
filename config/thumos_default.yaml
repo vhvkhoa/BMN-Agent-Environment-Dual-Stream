@@ -2,13 +2,15 @@ MODE: 'training'
 DATASET: 'thumos'
 USE_ENV: True
 USE_AGENT: True
+GPU_IDS: [0, 1, 2, 3]
 EVAL_SCORE: 'AR@100'
 TRAIN:
   SPLIT: 'training'
   NUM_EPOCHS: 20
   BATCH_SIZE: 16
   STEP_PERIOD: 1
-  LR: 0.0001
+  LR: 0.001
+  WEIGHT_DECAY: 0.0001
   ANNOTATION_FILE: '../datasets/thumos14/thumos_annotations.json'
   LOG_DIR: 'runs/thumos_c3d_runs/'
 VAL:

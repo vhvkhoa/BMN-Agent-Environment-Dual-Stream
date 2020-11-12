@@ -109,8 +109,10 @@ class VideoDataSet(Dataset):
         match_map = np.reshape(match_map, [-1, 2])  # [0,2] [1,3] [2,4].....[99,101]   # duration x start
         self.match_map = match_map
 
-        self.anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(self.temporal_dim)]
-        self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_dim + 1)]
+        # self.anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(self.temporal_dim)]
+        # self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_dim + 1)]
+        self.anchor_xmin = [self.temporal_gap * i for i in range(self.temporal_dim)]
+        self.anchor_xmax = [self.temporal_gap * i for i in range(1, self.temporal_dim + 1)]
 
     def _get_dataset(self):
         annotations = load_json(self.video_anno_path)['database']
@@ -230,13 +232,3 @@ class VideoDataSet(Dataset):
 
     def __len__(self):
         return len(self.video_ids)
-
-
-if __name__ == '__main__':
-    cfg = get_cfg()
-    train_loader = torch.utils.data.DataLoader(VideoDataSet(cfg, split="train"),
-                                               batch_size=cfg.TRAIN.BATCH_SIZE, shuffle=True,
-                                               num_workers=8, pin_memory=True, collate_fn=train_collate_fn)
-    for a, b, c, d, e, f in train_loader:
-        print(a.size(), b.size(), c.size(), d.size(), e.size(), f.size())
-        break

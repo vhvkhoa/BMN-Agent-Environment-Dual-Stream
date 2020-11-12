@@ -25,18 +25,18 @@ sys.dont_write_bytecode = True
 class Solver:
     def __init__(self, cfg):
         self.cfg = cfg
-        self.model = EventDetection(cfg)
-        self.model = torch.nn.DataParallel(self.model, device_ids=cfg.GPU_IDS).cuda()
+        self.model = EventDetection(cfg).cuda()
+        self.model = torch.nn.DataParallel(self.model, device_ids=cfg.GPU_IDS)
         if cfg.MODE not in ['train', 'training']:  # TODO: add condition for resume feature.
             checkpoint = torch.load(cfg.TEST.CHECKPOINT_PATH)
             print('Loaded model at epoch %d.' % checkpoint['epoch'])
             self.model.load_state_dict(checkpoint['state_dict'])
 
         if cfg.MODE in ['train', 'training']:
-            self.optimizer = optim.Adam(
+            self.optimizer = optim.AdamW(
                 filter(lambda p: p.requires_grad, self.model.parameters()),
-                lr=cfg.TRAIN.LR,
-                weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+                lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+            self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
             self.train_collator = Collator(cfg, 'train')
         self.test_collator = Collator(cfg, 'test')
 
@@ -117,6 +117,7 @@ class Solver:
         bm_mask = get_mask(self.temporal_dim, self.max_duration).cuda()
         scores = []
         for epoch in range(n_epochs):
+            print('Current LR: {}'.format(self.scheduler.get_last_lr()[0]))
             self.train_epoch(train_loader, bm_mask, epoch, writer)
             score = self.evaluate(eval_loader, self.cfg.VAL.SPLIT)
 
@@ -131,6 +132,7 @@ class Solver:
 
             writer.add_scalar(self.cfg.EVAL_SCORE, score, epoch)
             scores.append(score)
+            self.scheduler.step()
 
     def evaluate(self, data_loader=None, split=None):
         self.inference(data_loader, split, self.cfg.VAL.BATCH_SIZE)
