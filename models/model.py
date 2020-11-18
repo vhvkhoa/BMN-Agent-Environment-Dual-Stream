@@ -5,8 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from config.defaults import get_cfg
-from .bmn import BoundaryMatchingNetwork
-
+from .dbg import DenseBoundaryGenerator
 
 def _get_clones(module, N):
     return nn.ModuleList([copy.deepcopy(module) for i in range(N)])

@@ -21,13 +21,13 @@ def load_json(file):
 class Collator(object):
     def __init__(self, cfg, mode):
         self.is_train = mode in ['train', 'training']
-        if self.is_train:
-            self.batch_names = ['env_feats', 'agent_feats', 'box_lens', 'conf_labels', 'start_labels', 'end_labels']
-            self.label_names = ['conf_labels', 'start_labels', 'end_labels']
-        else:
-            self.batch_names = ['video_ids', 'env_feats', 'agent_feats', 'box_lens']
-            self.label_names = []
         self.feat_names = ['env_feats', 'agent_feats', 'box_lens']
+        if self.is_train:
+            self.label_names = ['action_scores', 'start_scores', 'end_scores', 'iou_scores']
+            self.batch_names = self.feat_names + self.label_names
+        else:
+            self.label_names = []
+            self.batch_names = ['video_ids'] + self.feat_names
         self.tmp_dim = cfg.DATA.TEMPORAL_DIM
         self.feat_dim = cfg.DATA.FEATURE_DIM
 
@@ -136,10 +136,10 @@ class VideoDataSet(Dataset):
     def __getitem__(self, index):
         env_features, agent_features, box_lengths = self._load_item(index)
         if self.split == 'training':
-            match_score_start, match_score_end, confidence_score = self._get_train_label(index)
-            return env_features, agent_features, box_lengths, confidence_score, match_score_start, match_score_end
+            action_scores, start_scores, end_scores, iou_scores = self._get_train_label(index)
+            return env_features, agent_features, box_lengths, action_scores, start_scores, end_scores, iou_scores
         else:
-            return self.video_ids[index], env_features, agent_features, box_lengths
+            return self.video_ids[index], env_features, agent_features, box_lengths, action_scores, start_scores, end_scores, iou_scores
 
     def _load_item(self, index):
         video_name = self.video_prefix + self.video_ids[index]
@@ -187,48 +187,47 @@ class VideoDataSet(Dataset):
         ##############################################################################################
         # change the measurement from second to percentage
         gt_bbox = []
-        gt_iou_map = []
         for j in range(len(video_labels)):
             tmp_info = video_labels[j]
             tmp_start = max(min(1, tmp_info['segment'][0] / duration), 0)
             tmp_end = max(min(1, tmp_info['segment'][1] / duration), 0)
             gt_bbox.append([tmp_start, tmp_end])
-            tmp_gt_iou_map = iou_with_anchors(
-                self.match_map[:, 0], self.match_map[:, 1], tmp_start, tmp_end)
-            tmp_gt_iou_map = np.reshape(tmp_gt_iou_map,
-                                        [self.max_duration, self.temporal_dim])
-            gt_iou_map.append(tmp_gt_iou_map)
-        gt_iou_map = np.array(gt_iou_map)
-        gt_iou_map = np.max(gt_iou_map, axis=0)
-        gt_iou_map = torch.Tensor(gt_iou_map)
-        ##############################################################################################
-
-        ##############################################################################################
-        # generate R_s and R_e
         gt_bbox = np.array(gt_bbox)
         gt_xmins = gt_bbox[:, 0]
         gt_xmaxs = gt_bbox[:, 1]
-        # gt_lens = gt_xmaxs - gt_xmins
-        gt_len_small = 3 * self.temporal_gap  # np.maximum(self.temporal_gap, self.boundary_ratio * gt_lens)
+
+        gt_lens = gt_xmaxs - gt_xmins
+        gt_len_small = np.maximum(self.temporal_gap, 0.1 * gt_lens)
         gt_start_bboxs = np.stack((gt_xmins - gt_len_small / 2, gt_xmins + gt_len_small / 2), axis=1)
         gt_end_bboxs = np.stack((gt_xmaxs - gt_len_small / 2, gt_xmaxs + gt_len_small / 2), axis=1)
-        ##############################################################################################
 
-        ##############################################################################################
-        # calculate the ioa for all timestamp
+        match_score_action = []
+        for jdx in range(len(self.anchor_xmin)):
+            match_score_action.append(np.max(
+                ioa_with_anchors(self.anchor_xmin[jdx], self.anchor_xmax[jdx], gt_xmins, gt_xmaxs))) 
+        match_score_action = torch.Tensor(np.array(match_score_action)).unsqueeze(0)
+
         match_score_start = []
         for jdx in range(len(self.anchor_xmin)):
             match_score_start.append(np.max(
                 ioa_with_anchors(self.anchor_xmin[jdx], self.anchor_xmax[jdx], gt_start_bboxs[:, 0], gt_start_bboxs[:, 1])))
+        match_score_start = torch.Tensor(np.array(match_score_start)).unsqueeze(0)
+
         match_score_end = []
         for jdx in range(len(self.anchor_xmin)):
             match_score_end.append(np.max(
                 ioa_with_anchors(self.anchor_xmin[jdx], self.anchor_xmax[jdx], gt_end_bboxs[:, 0], gt_end_bboxs[:, 1])))
-        match_score_start = torch.tensor(match_score_start)
-        match_score_end = torch.tensor(match_score_end)
-        ##############################################################################################
+        match_score_end = torch.Tensor(np.array(match_score_end)).unsqueeze(0)
 
-        return match_score_start, match_score_end, gt_iou_map
+        # gen iou_labels
+        iou_labels = np.zeros([self.temporal_dim, self.temporal_dim])
+        for i in range(self.temporal_dim):
+            for j in range(i, self.temporal_dim):
+                iou_labels[i, j] = np.max(
+                    iou_with_anchors(i * self.temporal_gap, (j + 1) * self.temporal_gap, gt_xmins, gt_xmaxs))
+        iou_labels = torch.Tensor(iou_labels).unsqueeze(0)
+
+        return match_score_action, match_score_start, match_score_end, iou_labels
 
     def __len__(self):
         return len(self.video_ids)

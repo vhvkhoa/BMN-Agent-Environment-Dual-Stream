@@ -57,18 +57,15 @@ class Solver:
         last_period_size = len(data_loader) % cfg.TRAIN.STEP_PERIOD
         last_period_start = cfg.TRAIN.STEP_PERIOD * (len(data_loader) // cfg.TRAIN.STEP_PERIOD)
 
-        for n_iter, (env_features, agent_features, agent_masks, label_confidence, label_start, label_end) in enumerate(tqdm(data_loader)):
+        for n_iter, (env_features, agent_features, agent_masks, gt_labels) in enumerate(tqdm(data_loader)):
             env_features = env_features.cuda() if cfg.USE_ENV else None
             agent_features = agent_features.cuda() if cfg.USE_AGENT else None
             agent_masks = agent_masks.cuda() if cfg.USE_AGENT else None
 
-            label_start = label_start.cuda()
-            label_end = label_end.cuda()
-            label_confidence = label_confidence.cuda()
+            gt_labels = [gt_label.cuda() for gt_label in gt_labels]
+            preds = self.model(env_features, agent_features, agent_masks)
 
-            confidence_map, start, end = self.model(env_features, agent_features, agent_masks)
-
-            losses = bmn_loss_func(confidence_map, start, end, label_confidence, label_start, label_end, bm_mask)
+            losses = bmn_loss_func(preds, gt_labels, bm_mask)
             period_size = cfg.TRAIN.STEP_PERIOD if n_iter < last_period_start else last_period_size
             total_loss = losses[0] / period_size
             total_loss.backward()
