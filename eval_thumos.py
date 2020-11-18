@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import requests
 import pickle
 import io
@@ -9,18 +10,22 @@ from scipy.interpolate import interp1d
 from evaluation_thumos import prop_eval
 
 
-def run_evaluation(proposal_filename):
+def run_evaluation(proposal_filename, groundtruth_filename='../datasets/thumos14/thumos14_test_groundtruth.csv'):
     frm_nums = pickle.load(open("evaluation_thumos/frm_num.pkl", 'rb'))
     rows = prop_eval.pkl2dataframe(frm_nums, 'evaluation_thumos/movie_fps.pkl', proposal_filename)
     aen_results = pd.DataFrame(rows, columns=['f-end', 'f-init', 'score', 'video-frames', 'video-name'])
 
     # Retrieves and loads Thumos14 test set ground-truth.
-    ground_truth_url = ('https://gist.githubusercontent.com/cabaf/'
-                        'ed34a35ee4443b435c36de42c4547bd7/raw/'
-                        '952f17b9cdc6aa4e6d696315ba75091224f5de97/'
-                        'thumos14_test_groundtruth.csv')
-    s = requests.get(ground_truth_url).content
-    ground_truth = pd.read_csv(io.StringIO(s.decode('utf-8')), sep=' ')
+    if not os.path.isfile(groundtruth_filename):
+        ground_truth_url = ('https://gist.githubusercontent.com/cabaf/'
+                            'ed34a35ee4443b435c36de42c4547bd7/raw/'
+                            '952f17b9cdc6aa4e6d696315ba75091224f5de97/'
+                            'thumos14_test_groundtruth.csv')
+        s = requests.get(ground_truth_url).content
+        groundtruth = pd.read_csv(io.StringIO(s.decode('utf-8')), sep=' ')
+        groundtruth.to_csv(groundtruth_filename)
+    else:
+        groundtruth = pd.read_csv(groundtruth_filename)
     # Computes recall for different tiou thresholds at a fixed average number of proposals.
     '''
     recall, tiou_thresholds = prop_eval.recall_vs_tiou_thresholds(aen_results, ground_truth,
@@ -28,7 +33,7 @@ def run_evaluation(proposal_filename):
                                                         tiou_thresholds=np.linspace(0.5, 1.0, 11))
     recall = np.mean(recall)
     '''
-    average_recall, average_nr_proposals = prop_eval.average_recall_vs_nr_proposals(aen_results, ground_truth)
+    average_recall, average_nr_proposals = prop_eval.average_recall_vs_nr_proposals(aen_results, groundtruth)
 
     return average_recall, average_nr_proposals
 

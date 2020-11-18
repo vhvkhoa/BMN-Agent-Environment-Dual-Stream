@@ -1,4 +1,4 @@
-MODE: 'training'
+MODE: 'validation'
 DATASET: 'thumos'
 USE_ENV: True
 USE_AGENT: True
@@ -20,7 +20,7 @@ VAL:
 TEST:
   SPLIT: 'testing'
   BATCH_SIZE: 32
-  CHECKPOINT_PATH: 'checkpoints/best_thumos14/best_AR@100.pth'
+  CHECKPOINT_PATH: 'checkpoints/thumos_c3d_checkpoints/checkpoint_5/best_AR@100.pth'
   ANNOTATION_FILE: '../datasets/thumos14/thumos_annotations.json'
 DATA:
   ENV_FEATURE_DIR: '../datasets/thumos14/env_features/'
