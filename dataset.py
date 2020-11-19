@@ -65,8 +65,10 @@ class Collator(object):
         input_feats = [input_batch[feat_name] for feat_name in self.feat_names]
         output_batch.extend(self.process_features(bsz, *input_feats))
 
+        gt_labels = []
         for label_name in self.label_names:
-            output_batch.append(torch.stack(input_batch[label_name]))
+            gt_labels.append(torch.stack(input_batch[label_name]))
+        output_batch.append(gt_labels)
         return output_batch
 
 
