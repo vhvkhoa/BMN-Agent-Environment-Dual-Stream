@@ -65,7 +65,7 @@ class Solver:
             gt_labels = [gt_label.cuda() for gt_label in gt_labels]
             preds = self.model(env_features, agent_features, agent_masks)
 
-            losses = dbg_loss_func(preds, gt_labels, bm_mask)
+            losses = dbg_loss_func(self.cfg, preds, gt_labels, bm_mask)
             period_size = cfg.TRAIN.STEP_PERIOD if n_iter < last_period_start else last_period_size
             total_loss = losses[0] / period_size
             total_loss.backward()
