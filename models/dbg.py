@@ -54,7 +54,7 @@ class DSBaseNet(nn.Module):
     """
     def __init__(self, feature_dim):
         super(DSBaseNet, self).__init__()
-        # feature_dim = feature_dim // 2
+        feature_dim = feature_dim // 2
         self.feature_dim = feature_dim
         self.conv1_1 = conv1d(feature_dim, 256, 3)
         self.conv1_2 = conv1d(256, 128, 3)
