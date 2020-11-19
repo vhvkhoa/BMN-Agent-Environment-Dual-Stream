@@ -138,7 +138,7 @@ class EventDetection(nn.Module):
 
         self.agents_fuser = TransformerEncoder(cfg)
         self.agents_environment_fuser = TransformerEncoder(cfg)
-        self.event_detector = BoundaryMatchingNetwork(cfg)
+        self.event_detector = DenseBoundaryGenerator(cfg)
 
         self.attention_steps = cfg.TRAIN.ATTENTION_STEPS
 
