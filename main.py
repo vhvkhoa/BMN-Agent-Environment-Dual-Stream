@@ -9,7 +9,7 @@ import torch.nn.parallel
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
-from models import EventDetection
+from models.model import EventDetection
 from dataset import VideoDataSet, Collator
 from loss_function import bmn_loss_func, get_mask
 from post_processing import PostProcessor, getDatasetDict
