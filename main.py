@@ -60,7 +60,7 @@ class Solver:
         for n_iter, (env_features, agent_features, agent_masks, gt_labels) in enumerate(tqdm(data_loader)):
             env_features = env_features.cuda() if cfg.USE_ENV else None
             agent_features = agent_features.cuda() if cfg.USE_AGENT else None
-            agent_masks = agent_masks.cuda() if cfg.USE_AGENT else None
+            agent_masks = agent_masks.cuda().float() if cfg.USE_AGENT else None
 
             gt_labels = [gt_label.cuda() for gt_label in gt_labels]
             preds = self.model(env_features, agent_features, agent_masks)
