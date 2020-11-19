@@ -33,7 +33,7 @@ class Solver:
             self.model.load_state_dict(checkpoint['state_dict'])
 
         if cfg.MODE in ['train', 'training']:
-            self.optimizer = optim.AdamW(
+            self.optimizer = optim.Adam(
                 filter(lambda p: p.requires_grad, self.model.parameters()),
                 lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
             self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
@@ -65,7 +65,7 @@ class Solver:
             gt_labels = [gt_label.cuda() for gt_label in gt_labels]
             preds = self.model(env_features, agent_features, agent_masks)
 
-            losses = bmn_loss_func(preds, gt_labels, bm_mask)
+            losses = dbg_loss_func(preds, gt_labels, bm_mask)
             period_size = cfg.TRAIN.STEP_PERIOD if n_iter < last_period_start else last_period_size
             total_loss = losses[0] / period_size
             total_loss.backward()
