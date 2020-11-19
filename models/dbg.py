@@ -67,7 +67,6 @@ class DSBaseNet(nn.Module):
         self.conv3 = conv1d(128, 1, 1, is_relu=False)
 
     def forward(self, x):
-        print(x.size())
         x1, x2 = torch.split(x, self.feature_dim, 1)
         x1 = self.conv1_1(x1)
         x1 = self.conv1_2(x1)
