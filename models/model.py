@@ -171,9 +171,7 @@ class EventDetection(nn.Module):
 
                     padded_output = torch.zeros(bsz * (smpl_end - smpl_bgn), ft_sz).cuda()
                     fuser_output = self.agents_fuser(fuser_input, key_padding_mask=attention_padding_masks)
-                    sum_fuser = torch.sum(~attention_padding_masks, dim=-1, keepdim=True)
-                    print(sum_fuser.size(), sum_fuser.dtype)
-                    fuser_output = torch.sum(fuser_output, dim=0) / sum_fuser
+                    fuser_output = torch.sum(fuser_output, dim=0) / torch.sum(~attention_padding_masks, dim=-1, keepdim=True).float()
                     padded_output[keep_indices] = fuser_output
                     agent_fused_features[:, smpl_bgn:smpl_end] = padded_output.view(bsz, -1, ft_sz)
 
