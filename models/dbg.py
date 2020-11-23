@@ -52,44 +52,21 @@ class DSBaseNet(nn.Module):
     """
     Setup dual stream base network (DSB)
     """
-    def __init__(self, feature_dim):
+    def __init__(self, feature_dim, hidden_dim):
         super(DSBaseNet, self).__init__()
-        feature_dim = feature_dim // 2
         self.feature_dim = feature_dim
-        self.conv1_1 = conv1d(feature_dim, 256, 3)
-        self.conv1_2 = conv1d(256, 128, 3)
-        self.conv1_3 = conv1d(128, 1, 1, is_relu=False)
-
-        self.conv2_1 = conv1d(feature_dim, 256, 3)
-        self.conv2_2 = conv1d(256, 128, 3)
-        self.conv2_3 = conv1d(128, 1, 1, is_relu=False)
-
-        self.conv3 = conv1d(128, 1, 1, is_relu=False)
+        self.conv1_1 = conv1d(feature_dim, hidden_dim, 3)
+        self.conv1_2 = conv1d(hidden_dim, hidden_dim, 3)
+        self.conv1_3 = conv1d(hidden_dim, 1, 1, is_relu=False)
 
     def forward(self, x):
-        x1, x2 = torch.split(x, self.feature_dim, 1)
-        x1 = self.conv1_1(x1)
-        x1 = self.conv1_2(x1)
-        x1_feat = x1
-        x1 = torch.sigmoid(self.conv1_3(x1))
-
-        x2 = self.conv2_1(x2)
-        x2 = self.conv2_2(x2)
-        x2_feat = x2
-        x2 = torch.sigmoid(self.conv2_3(x2))
-
-        xc = x1_feat + x2_feat
-        xc_feat = xc
-        x3 = torch.sigmoid(self.conv3(xc))
-
-        score = (x1 + x2 + x3) / 3.0
+        x = self.conv1_1(x)
+        x = self.conv1_2(x)
+        score = torch.sigmoid(self.conv1_3(x))
 
         output_dict = {
             'score': score,
-            'x1': x1,
-            'x2': x2,
-            'x3': x3,
-            'xc_feat': xc_feat
+            'feat': x
         }
         return output_dict
 
@@ -98,7 +75,7 @@ class ProposalFeatureGeneration(nn.Module):
     """
     Setup proposal feature generation module
     """
-    def __init__(self, in_channels=128):
+    def __init__(self, in_channels=256):
         super(ProposalFeatureGeneration, self).__init__()
         self.prop_tcfg = PropTcfg()
         self.conv3d = nn.Conv3d(in_channels, 512, kernel_size=(32, 1, 1))
@@ -162,9 +139,13 @@ class DenseBoundaryGenerator(nn.Module):
     """
     def __init__(self, cfg):
         feature_dim = cfg.DATA.FEATURE_DIM
+        hidden_dim_1d = cfg.MODEL.HIDDEN_DIM_1D
+        hidden_dim_2d = cfg.MODEL.HIDDEN_DIM_2D
+        hidden_dim_3d = cfg.MODEL.HIDDEN_DIM_3D
+
         super(DenseBoundaryGenerator, self).__init__()
 
-        self.DSBNet = DSBaseNet(feature_dim)
+        self.DSBNet = DSBaseNet(feature_dim, hidden_dim_1d)
         self.PropFeatGen = ProposalFeatureGeneration()
         self.ACRNet = ACRNet()
         self.TBCNet = TBCNet()
@@ -191,14 +172,12 @@ class DenseBoundaryGenerator(nn.Module):
 
     def forward(self, x):
         DSB_output = self.DSBNet(x)
-        action_feat, net_feat = self.PropFeatGen(DSB_output['score'], DSB_output['xc_feat'])
+        action_feat, net_feat = self.PropFeatGen(DSB_output['score'], DSB_output['feat'])
         iou = self.ACRNet(action_feat)
         prop_start, prop_end = self.TBCNet(net_feat)
 
         output_dict = {
-            'x1': DSB_output['x1'],
-            'x2': DSB_output['x2'],
-            'x3': DSB_output['x3'],
+            'action': DSB_output['score'],
             'iou': iou,
             'prop_start': prop_start,
             'prop_end': prop_end

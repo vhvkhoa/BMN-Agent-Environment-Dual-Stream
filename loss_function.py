@@ -5,12 +5,11 @@ import torch.nn.functional as F
 
 
 def get_mask(tscale, duration):
-    bm_mask = []
-    for idx in range(duration):
-        mask_vector = [1 for i in range(tscale - idx)
-                       ] + [0 for i in range(idx)]
-        bm_mask.append(mask_vector)
-    bm_mask = np.array(bm_mask, dtype=np.float32)
+    bm_mask = np.zeros((tscale, tscale))
+    for idx in range(tscale):
+        for jdx in range(idx, tscale):
+            if jdx - idx < duration:
+                bm_mask[idx, jdx] = 1
     bm_mask = np.expand_dims(np.expand_dims(bm_mask, 0), 1)
     return torch.Tensor(bm_mask)
 
@@ -84,9 +83,7 @@ def IoU_loss(gt_iou, pred_iou, mask):
 
 
 def dbg_loss_func(cfg, preds, gt_labels, bm_mask):
-    x1 = preds['x1']
-    x2 = preds['x2']
-    x3 = preds['x3']
+    action = preds['action']
     iou = preds['iou']
     prop_start = preds['prop_start']
     prop_end = preds['prop_end']
@@ -94,10 +91,7 @@ def dbg_loss_func(cfg, preds, gt_labels, bm_mask):
     gt_action, gt_start, gt_end, iou_label = gt_labels
 
     # calculate action loss
-    loss_action = binary_logistic_loss(gt_action, x1) + \
-        binary_logistic_loss(gt_action, x2) + \
-        binary_logistic_loss(gt_action, x3)
-    loss_action /= 3
+    loss_action = binary_logistic_loss(gt_action, action)
 
     # calculate IoU loss
     iou_losses = 0.0

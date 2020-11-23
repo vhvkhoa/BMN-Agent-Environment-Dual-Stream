@@ -4,11 +4,12 @@ USE_ENV: True
 USE_AGENT: True
 TRAIN:
   SPLIT: 'training'
-  NUM_EPOCHS: 10
+  NUM_EPOCHS: 15
   BATCH_SIZE: 16
+  ATTENTION_STEPS: 1
   LR: 0.0001
   ANNOTATION_FILE: '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
-  LOG_DIR: 'runs/c3d_runs/'
+  LOG_DIR: 'runs/dbg_c3d_runs/'
 VAL:
   SPLIT: 'validation'
   BATCH_SIZE: 32
@@ -27,5 +28,5 @@ DATA:
   MAX_DURATION: 100
   FEATURE_DIM: 2048
 MODEL:
-  SCORE_PATH: 'checkpoints/c3d_checkpoints/scores.json'
-  CHECKPOINT_DIR: 'checkpoints/c3d_checkpoints/'
+  SCORE_PATH: 'checkpoints/dbg_c3d_checkpoints/scores.json'
+  CHECKPOINT_DIR: 'checkpoints/dbg_c3d_checkpoints/'

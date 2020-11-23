@@ -42,48 +42,23 @@ class ProposalGenerator(object):
         d = self.annots[video_name]['master_snippet_duration']
         return (start_index + b) / d, (end_index + b) / d
 
-    def __call__(self, start, end, confidence_map, video_names):
+    def __call__(self, start, end, iou, video_names):
         batch_props = []
         for i, video_name in enumerate(video_names):
             start_scores = start[i]
             end_scores = end[i]
-            clr_confidence = (confidence_map[i][1])
-            reg_confidence = (confidence_map[i][0])
-
-            max_start = max(start_scores)
-            max_end = max(end_scores)
-
-            # generate the set of start points and end points
-            start_bins = np.zeros(self.tscale)
-            start_bins[0] = 1  # [1,0,0...,0,1]
-            for idx in range(1, self.tscale - 1):
-                if start_scores[idx] > start_scores[idx + 1] and start_scores[idx] > start_scores[idx - 1]:
-                    start_bins[idx] = 1
-                elif start_scores[idx] > (0.5 * max_start):
-                    start_bins[idx] = 1
-
-            end_bins = np.zeros(len(end_scores))
-            end_bins[-1] = 1
-            for idx in range(1, self.tscale - 1):
-                if end_scores[idx] > end_scores[idx + 1] and end_scores[idx] > end_scores[idx - 1]:
-                    end_bins[idx] = 1
-                elif end_scores[idx] > (0.5 * max_end):
-                    end_bins[idx] = 1
+            iou_scores = iou[i]
 
             # generate proposals
             new_props = []
-            for idx in range(self.max_duration):
-                for jdx in range(self.tscale):
-                    start_index = jdx
-                    end_index = start_index + idx + 1
-                    if end_index < self.tscale and start_bins[start_index] == 1 and end_bins[end_index] == 1:
-                        xmin, xmax = self.rescale_segment(start_index, end_index, video_name)
-                        xmin_score = start_scores[start_index]
-                        xmax_score = end_scores[end_index]
-                        clr_score = clr_confidence[idx, jdx]
-                        reg_score = reg_confidence[idx, jdx]
-                        score = xmin_score * xmax_score * clr_score * reg_score
-                        new_props.append([xmin, xmax, xmin_score, xmax_score, clr_score, reg_score, score])
+            for idx in range(self.tscale):
+                for jdx in range(idx, self.max_duration):
+                    xmin, xmax = self.rescale_segment(idx, jdx + 1, video_name)
+                    xmin_score = start_scores[idx]
+                    xmax_score = end_scores[jdx]
+                    iou_score = iou_scores[idx, jdx]
+                    score = xmin_score * xmax_score * iou_score
+                    new_props.append([xmin, xmax, xmin_score, xmax_score, iou_score, score])
             new_props = np.stack(new_props)
             batch_props.append(new_props)
 

@@ -65,10 +65,11 @@ class Collator(object):
         input_feats = [input_batch[feat_name] for feat_name in self.feat_names]
         output_batch.extend(self.process_features(bsz, *input_feats))
 
-        gt_labels = []
-        for label_name in self.label_names:
-            gt_labels.append(torch.stack(input_batch[label_name]))
-        output_batch.append(gt_labels)
+        if len(self.label_names) > 0:
+            gt_labels = []
+            for label_name in self.label_names:
+                gt_labels.append(torch.stack(input_batch[label_name]))
+            output_batch.append(gt_labels)
         return output_batch
 
 
@@ -141,7 +142,7 @@ class VideoDataSet(Dataset):
             action_scores, start_scores, end_scores, iou_scores = self._get_train_label(index)
             return env_features, agent_features, box_lengths, action_scores, start_scores, end_scores, iou_scores
         else:
-            return self.video_ids[index], env_features, agent_features, box_lengths, action_scores, start_scores, end_scores, iou_scores
+            return self.video_ids[index], env_features, agent_features, box_lengths
 
     def _load_item(self, index):
         video_name = self.video_prefix + self.video_ids[index]
@@ -206,7 +207,7 @@ class VideoDataSet(Dataset):
         match_score_action = []
         for jdx in range(len(self.anchor_xmin)):
             match_score_action.append(np.max(
-                ioa_with_anchors(self.anchor_xmin[jdx], self.anchor_xmax[jdx], gt_xmins, gt_xmaxs))) 
+                ioa_with_anchors(self.anchor_xmin[jdx], self.anchor_xmax[jdx], gt_xmins, gt_xmaxs)))
         match_score_action = torch.Tensor(np.array(match_score_action)).unsqueeze(0)
 
         match_score_start = []

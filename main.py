@@ -33,10 +33,46 @@ class Solver:
             self.model.load_state_dict(checkpoint['state_dict'])
 
         if cfg.MODE in ['train', 'training']:
+            # set weight decay for different parameters
+            Net_bias = []
+            for name, p in self.model.module.event_detector.named_parameters():
+                if 'bias' in name:
+                    Net_bias.append(p)
+
+            DSBNet_weight = []
+            for name, p in self.model.module.event_detector.DSBNet.named_parameters():
+                if 'bias' not in name:
+                    DSBNet_weight.append(p)
+
+            PFG_weight = []
+            for name, p in self.model.module.event_detector.PropFeatGen.named_parameters():
+                if 'bias' not in name:
+                    PFG_weight.append(p)
+
+            ACR_TBC_weight = []
+            for name, p in self.model.module.event_detector.ACRNet.named_parameters():
+                if 'bias' not in name:
+                    ACR_TBC_weight.append(p)
+            for name, p in self.model.module.event_detector.TBCNet.named_parameters():
+                if 'bias' not in name:
+                    ACR_TBC_weight.append(p)
+
+            # setup Adam optimizer
+            '''
+            self.optimizer = torch.optim.Adam([
+                {'params': list(self.model.module.agents_fuser.parameters())
+                    + list(self.model.module.agents_environment_fuser.parameters())},
+                {'params': Net_bias, 'weight_decay': 0},
+                {'params': DSBNet_weight, 'weight_decay': 2e-3},
+                {'params': PFG_weight, 'weight_decay': 2e-4},
+                {'params': ACR_TBC_weight, 'weight_decay': 2e-5}
+            ], lr=cfg.TRAIN.LR)  # , weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+            '''
+
             self.optimizer = optim.Adam(
                 filter(lambda p: p.requires_grad, self.model.parameters()),
-                lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
-            #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.1)
+                lr=cfg.TRAIN.LR) #, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+            self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.3)
             self.train_collator = Collator(cfg, 'train')
         self.test_collator = Collator(cfg, 'test')
 
@@ -46,8 +82,9 @@ class Solver:
             self.evaluate_proposals = anet_evaluate
         elif cfg.DATASET == 'thumos':
             self.evaluate_proposals = thumos_evaluate
+        self.bm_mask = get_mask(self.temporal_dim, self.max_duration).cuda()
 
-    def train_epoch(self, data_loader, bm_mask, epoch, writer):
+    def train_epoch(self, data_loader, epoch, writer):
         cfg = self.cfg
         self.model.train()
         self.optimizer.zero_grad()
@@ -65,7 +102,7 @@ class Solver:
             gt_labels = [gt_label.cuda() for gt_label in gt_labels]
             preds = self.model(env_features, agent_features, agent_masks)
 
-            losses = dbg_loss_func(self.cfg, preds, gt_labels, bm_mask)
+            losses = dbg_loss_func(self.cfg, preds, gt_labels, self.bm_mask)
             period_size = cfg.TRAIN.STEP_PERIOD if n_iter < last_period_start else last_period_size
             total_loss = losses[0] / period_size
             total_loss.backward()
@@ -111,11 +148,10 @@ class Solver:
             batch_size=self.cfg.VAL.BATCH_SIZE, shuffle=False,
             num_workers=12, pin_memory=True, drop_last=False, collate_fn=self.test_collator)
 
-        bm_mask = get_mask(self.temporal_dim, self.max_duration).cuda()
         scores = []
         for epoch in range(n_epochs):
             #print('Current LR: {}'.format(self.scheduler.get_last_lr()[0]))
-            self.train_epoch(train_loader, bm_mask, epoch, writer)
+            self.train_epoch(train_loader, epoch, writer)
             score = self.evaluate(eval_loader, self.cfg.VAL.SPLIT)
 
             state = {
@@ -129,7 +165,7 @@ class Solver:
 
             writer.add_scalar(self.cfg.EVAL_SCORE, score, epoch)
             scores.append(score)
-            #self.scheduler.step()
+            self.scheduler.step()
 
     def evaluate(self, data_loader=None, split=None):
         self.inference(data_loader, split, self.cfg.VAL.BATCH_SIZE)
@@ -146,7 +182,7 @@ class Solver:
                 batch_size=batch_size, shuffle=False,
                 num_workers=12, pin_memory=True, drop_last=False, collate_fn=self.test_collator)
 
-        col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "clr_score", "reg_score", "score"]
+        col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "iou_score", "score"]
         self.model.eval()
         with torch.no_grad():
             for video_names, env_features, agent_features, agent_masks in tqdm(data_loader):
@@ -154,12 +190,21 @@ class Solver:
                 agent_features = agent_features.cuda() if self.cfg.USE_AGENT else None
                 agent_masks = agent_masks.cuda() if self.cfg.USE_AGENT else None
 
-                confidence_map, start_map, end_map = self.model(env_features, agent_features, agent_masks)
-                confidence_map = confidence_map.cpu().numpy()
-                start_map = start_map.cpu().numpy()
-                end_map = end_map.cpu().numpy()
+                preds = self.model(env_features, agent_features, agent_masks)
+                iou_maps = preds['iou']
+                start_maps = preds['prop_start']
+                end_maps = preds['prop_end']
 
-                batch_props = self.prop_gen(start_map, end_map, confidence_map, video_names)
+                start_maps = start_maps * self.bm_mask
+                end_maps = end_maps * self.bm_mask
+                start_maps = torch.sum(start_maps, 3) / torch.sum(self.bm_mask, 3)
+                end_maps = torch.sum(end_maps, 2) / torch.sum(self.bm_mask, 2)
+
+                iou_maps = iou_maps[:, 0].cpu().numpy()
+                start_maps = start_maps[:, 0].cpu().numpy()
+                end_maps = end_maps[:, 0].cpu().numpy()
+
+                batch_props = self.prop_gen(start_maps, end_maps, iou_maps, video_names)
                 for video_name, new_props in zip(video_names, batch_props):
                     new_df = pd.DataFrame(new_props, columns=col_name)
                     new_df.to_feather("./results/outputs/" + video_name + ".feather")
