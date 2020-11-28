@@ -4,10 +4,12 @@ USE_ENV: True
 USE_AGENT: True
 TRAIN:
   SPLIT: 'training'
-  NUM_EPOCHS: 15
+  NUM_EPOCHS: 12
   BATCH_SIZE: 16
+  STEP_PERIOD: 1
   ATTENTION_STEPS: 1
   LR: 0.0001
+  WEIGHT_DECAY: 0.0001
   ANNOTATION_FILE: '../datasets/activitynet/annotations/activity_net.v1-3.min.json'
   LOG_DIR: 'runs/dbg_c3d_runs/'
 VAL:

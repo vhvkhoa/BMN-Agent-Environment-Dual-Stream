@@ -1,6 +1,4 @@
 import numpy as np
-import subprocess
-import os
 
 
 def ioa_with_anchors(anchors_min, anchors_max, box_min, box_max):

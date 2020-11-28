@@ -58,7 +58,6 @@ class Solver:
                     ACR_TBC_weight.append(p)
 
             # setup Adam optimizer
-            '''
             self.optimizer = torch.optim.Adam([
                 {'params': list(self.model.module.agents_fuser.parameters())
                     + list(self.model.module.agents_environment_fuser.parameters())},
@@ -66,13 +65,15 @@ class Solver:
                 {'params': DSBNet_weight, 'weight_decay': 2e-3},
                 {'params': PFG_weight, 'weight_decay': 2e-4},
                 {'params': ACR_TBC_weight, 'weight_decay': 2e-5}
-            ], lr=cfg.TRAIN.LR)  # , weight_decay=cfg.TRAIN.WEIGHT_DECAY)
-            '''
+            ], lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
 
+            print('Learning rate: {}. Weight decay: {}.'.format(cfg.TRAIN.LR, cfg.TRAIN.WEIGHT_DECAY))
+            '''
             self.optimizer = optim.Adam(
                 filter(lambda p: p.requires_grad, self.model.parameters()),
-                lr=cfg.TRAIN.LR) #, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
-            self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=10, gamma=0.3)
+                lr=cfg.TRAIN.LR, weight_decay=cfg.TRAIN.WEIGHT_DECAY)
+            '''
+            #self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=8, gamma=0.1)
             self.train_collator = Collator(cfg, 'train')
         self.test_collator = Collator(cfg, 'test')
 
@@ -88,13 +89,13 @@ class Solver:
         cfg = self.cfg
         self.model.train()
         self.optimizer.zero_grad()
-        loss_names = ['Loss', 'TemLoss', 'PemLoss Regression', 'PemLoss Classification']
-        epoch_losses = [0] * 4
-        period_losses = [0] * 4
+        loss_names = ['Loss', 'Action Loss', 'IoU Loss', 'Start Loss', 'End Loss']
+        epoch_losses = [0] * 5
+        period_losses = [0] * 5
         last_period_size = len(data_loader) % cfg.TRAIN.STEP_PERIOD
         last_period_start = cfg.TRAIN.STEP_PERIOD * (len(data_loader) // cfg.TRAIN.STEP_PERIOD)
 
-        for n_iter, (env_features, agent_features, agent_masks, gt_labels) in enumerate(tqdm(data_loader)):
+        for n_iter, (_, env_features, agent_features, agent_masks, gt_labels) in enumerate(tqdm(data_loader)):
             env_features = env_features.cuda() if cfg.USE_ENV else None
             agent_features = agent_features.cuda() if cfg.USE_AGENT else None
             agent_masks = agent_masks.cuda() if cfg.USE_AGENT else None
@@ -121,13 +122,14 @@ class Solver:
             write_step = epoch * len(data_loader) + n_iter
             for i, loss_name in enumerate(loss_names):
                 writer.add_scalar(loss_name, period_losses[i], write_step)
-            period_losses = [0] * 4
+            period_losses = [0] * 5
 
         print(
-            "BMN training loss(epoch %d): tem_loss: %.03f, pem reg_loss: %.03f, pem cls_loss: %.03f, total_loss: %.03f" % (
+            "BMN training loss(epoch %d): action loss: %.03f, iou loss: %.03f, start loss: %.03f, end loss: %.03f, total_loss: %.03f" % (
                 epoch, epoch_losses[1] / (n_iter + 1),
                 epoch_losses[2] / (n_iter + 1),
                 epoch_losses[3] / (n_iter + 1),
+                epoch_losses[4] / (n_iter + 1),
                 epoch_losses[0] / (n_iter + 1)))
 
     def train(self, n_epochs):
@@ -146,7 +148,7 @@ class Solver:
         eval_loader = torch.utils.data.DataLoader(
             VideoDataSet(self.cfg, split=self.cfg.VAL.SPLIT),
             batch_size=self.cfg.VAL.BATCH_SIZE, shuffle=False,
-            num_workers=12, pin_memory=True, drop_last=False, collate_fn=self.test_collator)
+            num_workers=12, pin_memory=True, drop_last=False, collate_fn=self.train_collator)
 
         scores = []
         for epoch in range(n_epochs):
@@ -165,7 +167,7 @@ class Solver:
 
             writer.add_scalar(self.cfg.EVAL_SCORE, score, epoch)
             scores.append(score)
-            self.scheduler.step()
+            # self.scheduler.step()
 
     def evaluate(self, data_loader=None, split=None):
         self.inference(data_loader, split, self.cfg.VAL.BATCH_SIZE)
@@ -176,6 +178,10 @@ class Solver:
         annotations = getDatasetDict(self.cfg.VAL.ANNOTATION_FILE, split) if self.cfg.DATASET == 'thumos' else None
         self.prop_gen = ProposalGenerator(self.temporal_dim, self.max_duration, annotations)
         self.post_processing = PostProcessor(self.cfg, split)
+
+        epoch_losses = [0] * 5
+        period_losses = [0] * 5
+
         if data_loader is None:
             data_loader = torch.utils.data.DataLoader(
                 VideoDataSet(self.cfg, split=split),
@@ -185,15 +191,24 @@ class Solver:
         col_name = ["xmin", "xmax", "xmin_score", "xmax_score", "iou_score", "score"]
         self.model.eval()
         with torch.no_grad():
-            for video_names, env_features, agent_features, agent_masks in tqdm(data_loader):
+            for n_iter, (video_names, env_features, agent_features, agent_masks, gt_labels) in enumerate(tqdm(data_loader)):
                 env_features = env_features.cuda() if self.cfg.USE_ENV else None
                 agent_features = agent_features.cuda() if self.cfg.USE_AGENT else None
                 agent_masks = agent_masks.cuda() if self.cfg.USE_AGENT else None
 
+                gt_labels = [gt_label.cuda() for gt_label in gt_labels]
                 preds = self.model(env_features, agent_features, agent_masks)
                 iou_maps = preds['iou']
                 start_maps = preds['prop_start']
                 end_maps = preds['prop_end']
+
+                losses = dbg_loss_func(self.cfg, preds, gt_labels, self.bm_mask)
+
+                losses = [l.cpu().detach().numpy() / self.cfg.TRAIN.STEP_PERIOD for l in losses]
+                period_losses = [l + pl for l, pl in zip(losses, period_losses)]
+
+                if (n_iter + 1) % self.cfg.TRAIN.STEP_PERIOD != 0 and n_iter != (len(data_loader) - 1):
+                    continue
 
                 start_maps = start_maps * self.bm_mask
                 end_maps = end_maps * self.bm_mask
@@ -208,6 +223,17 @@ class Solver:
                 for video_name, new_props in zip(video_names, batch_props):
                     new_df = pd.DataFrame(new_props, columns=col_name)
                     new_df.to_feather("./results/outputs/" + video_name + ".feather")
+
+                epoch_losses = [el + pl for el, pl in zip(epoch_losses, period_losses)]
+                period_losses = [0] * 5
+
+        print(
+            "BMN validation loss: action loss: %.03f, iou loss: %.03f, start loss: %.03f, end loss: %.03f, total_loss: %.03f" % (
+                epoch_losses[1] / (n_iter + 1),
+                epoch_losses[2] / (n_iter + 1),
+                epoch_losses[3] / (n_iter + 1),
+                epoch_losses[4] / (n_iter + 1),
+                epoch_losses[0] / (n_iter + 1)))
         self.post_processing()
 
 

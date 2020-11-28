@@ -24,7 +24,7 @@ class Collator(object):
         self.feat_names = ['env_feats', 'agent_feats', 'box_lens']
         if self.is_train:
             self.label_names = ['action_scores', 'start_scores', 'end_scores', 'iou_scores']
-            self.batch_names = self.feat_names + self.label_names
+            self.batch_names = ['video_ids'] + self.feat_names + self.label_names
         else:
             self.label_names = []
             self.batch_names = ['video_ids'] + self.feat_names
@@ -59,7 +59,8 @@ class Collator(object):
     def __call__(self, batch):
         input_batch = dict(zip(self.batch_names, zip(*batch)))
         bsz = len(input_batch['env_feats'])
-        output_batch = [] if self.is_train else [input_batch['video_ids']]
+        # output_batch = [] if self.is_train else [input_batch['video_ids']]
+        output_batch = [input_batch['video_ids']]
 
         # Process environment and agent features
         input_feats = [input_batch[feat_name] for feat_name in self.feat_names]
@@ -88,17 +89,22 @@ class VideoDataSet(Dataset):
 
         if split in ['train', 'training']:
             self.video_anno_path = cfg.TRAIN.ANNOTATION_FILE
-            self._get_match_map()
+            self.filter_video_names, self.augment_video_names = self.get_filter_video_names(self.video_anno_path)
+            # self._get_match_map()
 
         elif self.split in ['validation']:
             self.video_anno_path = cfg.VAL.ANNOTATION_FILE
+            self.filter_video_names = []
         elif self.split in ['test', 'testing']:
             self.video_anno_path = cfg.TEST.ANNOTATION_FILE
+            self.filter_video_names = []
         self.video_prefix = 'v_' if cfg.DATASET == 'anet' else ''
+        self._get_match_map()
 
         self._get_dataset()
 
     def _get_match_map(self):
+        '''
         match_map = []
         for idx in range(self.temporal_dim):
             tmp_match_window = []
@@ -111,11 +117,48 @@ class VideoDataSet(Dataset):
         match_map = np.transpose(match_map, [1, 0, 2])  # [0,1] [1,2] [2,3].....[99,100]
         match_map = np.reshape(match_map, [-1, 2])  # [0,2] [1,3] [2,4].....[99,101]   # duration x start
         self.match_map = match_map
+        '''
 
         # self.anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(self.temporal_dim)]
         # self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_dim + 1)]
-        self.anchor_xmin = [self.temporal_gap * i for i in range(self.temporal_dim)]
-        self.anchor_xmax = [self.temporal_gap * i for i in range(1, self.temporal_dim + 1)]
+
+        # self.anchor_xmin = [self.temporal_gap * i for i in range(self.temporal_dim)]
+        # self.anchor_xmax = [self.temporal_gap * i for i in range(1, self.temporal_dim + 1)]
+
+        self.anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(self.temporal_dim)]
+        self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(self.temporal_dim)]
+
+    def get_filter_video_names(self, video_info_file, gt_len_thres=0.98):
+        """
+        Select video according to length of ground truth
+        :param video_info_file: json file path of video information
+        :param gt_len_thres: max length of ground truth
+        :return: list of video names
+        """
+        filter_video_names, augment_video_names = [], []
+        json_data = load_json(video_info_file)['database']
+        video_lists = list(json_data)
+        for video_name in video_lists:
+            video_info = json_data[video_name]
+            if video_info['subset'] != "training":
+                continue
+            video_second = video_info["duration"]
+            gt_lens = []
+            video_labels = video_info["annotations"]
+            for j in range(len(video_labels)):
+                tmp_info = video_labels[j]
+                tmp_start = tmp_info["segment"][0]
+                tmp_end = tmp_info["segment"][1]
+                tmp_start = max(min(1, tmp_start / video_second), 0)
+                tmp_end = max(min(1, tmp_end / video_second), 0)
+                gt_lens.append(tmp_end - tmp_start)
+            if len(gt_lens):
+                mean_len = np.mean(gt_lens)
+                if mean_len >= gt_len_thres:
+                    filter_video_names.append(video_name)
+                if mean_len < 0.3:
+                    augment_video_names.append(video_name)
+        return filter_video_names, augment_video_names
 
     def _get_dataset(self):
         annotations = load_json(self.video_anno_path)['database']
@@ -125,7 +168,7 @@ class VideoDataSet(Dataset):
         self.video_ids = []
 
         for video_id, annotation in annotations.items():
-            if annotation['subset'] != self.split:
+            if annotation['subset'] != self.split or video_id in self.filter_video_names:
                 continue
             self.event_dict[video_id] = {
                 'duration': annotation['duration'],
@@ -133,16 +176,22 @@ class VideoDataSet(Dataset):
                 # 'events': annotation['timestamps']
             }
             self.video_ids.append(video_id)
+        if self.split in ['train', 'training']:
+            self.video_ids.extend(self.augment_video_names)
 
         print("Split: %s. Dataset size: %d" % (self.split, len(self.video_ids)))
 
     def __getitem__(self, index):
         env_features, agent_features, box_lengths = self._load_item(index)
+        action_scores, start_scores, end_scores, iou_scores = self._get_train_label(index)
+        return self.video_ids[index], env_features, agent_features, box_lengths, action_scores, start_scores, end_scores, iou_scores
+        '''
         if self.split == 'training':
             action_scores, start_scores, end_scores, iou_scores = self._get_train_label(index)
-            return env_features, agent_features, box_lengths, action_scores, start_scores, end_scores, iou_scores
+            return self.video_ids[index], env_features, agent_features, box_lengths, action_scores, start_scores, end_scores, iou_scores
         else:
             return self.video_ids[index], env_features, agent_features, box_lengths
+        '''
 
     def _load_item(self, index):
         video_name = self.video_prefix + self.video_ids[index]
