@@ -6,3 +6,4 @@ runs/
 outputs/
 evaluation_anet/
 evaluation_thumos/
+models/custom_op*/

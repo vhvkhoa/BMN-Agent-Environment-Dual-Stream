@@ -73,6 +73,7 @@ class Collator(object):
 class VideoDataSet(Dataset):
     def __init__(self, cfg, split='training'):
         self.split = split
+        self.dataset_name = cfg.DATASET
         # self.video_anno_path = cfg.DATA.ANNOTATION_FILE
         self.temporal_dim = cfg.DATA.TEMPORAL_DIM
         self.max_duration = cfg.DATA.MAX_DURATION
@@ -114,15 +115,50 @@ class VideoDataSet(Dataset):
         self.anchor_xmin = [self.temporal_gap * i for i in range(self.temporal_dim)]
         self.anchor_xmax = [self.temporal_gap * i for i in range(1, self.temporal_dim + 1)]
 
+    def get_filter_video_names(self, json_data, gt_len_thres=0.98):
+        """
+        Select video according to length of ground truth
+        :param video_info_file: json file path of video information
+        :param gt_len_thres: max length of ground truth
+        :return: list of video names
+        """
+        filter_video_names, augment_video_names = [], []
+        video_lists = list(json_data)
+        for video_name in video_lists:
+            video_info = json_data[video_name]
+            if video_info['subset'] != "training":
+                continue
+            video_second = video_info["duration"]
+            gt_lens = []
+            video_labels = video_info["annotations"]
+            for j in range(len(video_labels)):
+                tmp_info = video_labels[j]
+                tmp_start = tmp_info["segment"][0]
+                tmp_end = tmp_info["segment"][1]
+                tmp_start = max(min(1, tmp_start / video_second), 0)
+                tmp_end = max(min(1, tmp_end / video_second), 0)
+                gt_lens.append(tmp_end - tmp_start)
+            if len(gt_lens):
+                mean_len = np.mean(gt_lens)
+                if mean_len >= gt_len_thres:
+                    filter_video_names.append(video_name)
+                if mean_len < 0.2:
+                    augment_video_names.append(video_name)
+        return filter_video_names, augment_video_names
+
     def _get_dataset(self):
         annotations = load_json(self.video_anno_path)['database']
+        if self.dataset_name == 'anet':
+            filter_video_names, augment_video_names = self.get_filter_video_names(annotations)
+        else:
+            filter_video_names, augment_video_names = [], []
 
         # Read event segments
         self.event_dict = {}
         self.video_ids = []
 
         for video_id, annotation in annotations.items():
-            if annotation['subset'] != self.split:
+            if annotation['subset'] != self.split or video_id in filter_video_names:
                 continue
             self.event_dict[video_id] = {
                 'duration': annotation['duration'],
@@ -130,6 +166,8 @@ class VideoDataSet(Dataset):
                 # 'events': annotation['timestamps']
             }
             self.video_ids.append(video_id)
+        if self.split in ['train', 'training']:
+            self.video_ids.extend(augment_video_names)
 
         print("Split: %s. Dataset size: %d" % (self.split, len(self.video_ids)))
 
