@@ -110,12 +110,12 @@ class VideoDataSet(Dataset):
         match_map = np.reshape(match_map, [-1, 2])  # [0,2] [1,3] [2,4].....[99,101]   # duration x start
         self.match_map = match_map
 
-        # self.anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(self.temporal_dim)]
-        # self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_dim + 1)]
-        self.anchor_xmin = [self.temporal_gap * i for i in range(self.temporal_dim)]
-        self.anchor_xmax = [self.temporal_gap * i for i in range(1, self.temporal_dim + 1)]
+        self.anchor_xmin = [self.temporal_gap * (i - 0.5) for i in range(self.temporal_dim)]
+        self.anchor_xmax = [self.temporal_gap * (i + 0.5) for i in range(1, self.temporal_dim + 1)]
+        # self.anchor_xmin = [self.temporal_gap * i for i in range(self.temporal_dim)]
+        # self.anchor_xmax = [self.temporal_gap * i for i in range(1, self.temporal_dim + 1)]
 
-    def get_filter_video_names(self, json_data, gt_len_thres=0.98):
+    def get_filter_video_names(self, json_data, gt_len_thres=.98):
         """
         Select video according to length of ground truth
         :param video_info_file: json file path of video information
@@ -142,7 +142,7 @@ class VideoDataSet(Dataset):
                 mean_len = np.mean(gt_lens)
                 if mean_len >= gt_len_thres:
                     filter_video_names.append(video_name)
-                if mean_len < 0.2:
+                if mean_len < 0.3:
                     augment_video_names.append(video_name)
         return filter_video_names, augment_video_names
 

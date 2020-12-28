@@ -14,8 +14,12 @@ from dataset import VideoDataSet, Collator
 from loss_function import bmn_loss_func, get_mask
 from post_processing import PostProcessor, getDatasetDict
 from utils import ProposalGenerator
-from eval_anet import evaluate_proposals as anet_evaluate
-from eval_thumos import evaluate_proposals as thumos_evaluate
+
+from eval_anet import evaluate_proposals as anet_evaluate_prop
+from eval_thumos import evaluate_proposals as thumos_evaluate_prop
+
+from eval_det_anet import evaluate_detections as anet_evaluate_det
+from eval_det_thumos import evaluate_detections as thumos_evaluate_det
 
 from config.defaults import get_cfg
 
@@ -42,10 +46,20 @@ class Solver:
 
         self.temporal_dim = cfg.DATA.TEMPORAL_DIM
         self.max_duration = cfg.DATA.MAX_DURATION
+
+        self.evaluate_func = None
         if cfg.DATASET == 'anet':
-            self.evaluate_proposals = anet_evaluate
+            if cfg.EVAL_TYPE == 'proposal':
+                self.evaluate_func = anet_evaluate_prop
+            elif cfg.EVAL_TYPE == 'detection':
+                self.evaluate_func = anet_evaluate_det
         elif cfg.DATASET == 'thumos':
-            self.evaluate_proposals = thumos_evaluate
+            if cfg.EVAL_TYPE == 'proposal':
+                self.evaluate_func = thumos_evaluate_prop
+            elif cfg.EVAL_TYPE == 'detection':
+                self.evaluate_func = thumos_evaluate_det
+        if self.evaluate_func is None:
+            print('Evaluation function [{}] of dataset [{}] is not implemented'.format(cfg.EVAL_TYPE, cfg.DATASET))
 
     def train_epoch(self, data_loader, bm_mask, epoch, writer):
         cfg = self.cfg
@@ -136,7 +150,7 @@ class Solver:
 
     def evaluate(self, data_loader=None, split=None):
         self.inference(data_loader, split, self.cfg.VAL.BATCH_SIZE)
-        score = self.evaluate_proposals(self.cfg)  # AUC if dataset=anet, AR@100 if dataset=thumos
+        score = self.evaluate_func(self.cfg)  # AUC if dataset=anet, AR@100 if dataset=thumos
         return score
 
     def inference(self, data_loader=None, split=None, batch_size=None):

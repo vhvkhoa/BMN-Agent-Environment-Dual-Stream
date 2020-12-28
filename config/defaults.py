@@ -5,6 +5,7 @@ _C = CfgNode()
 
 _C.GPU_IDS = [0, 1, 2, 3]
 _C.MODE = 'training'
+_C.EVAL_TYPE = 'proposal'
 _C.DATASET = 'anet'
 _C.USE_ENV = True
 _C.USE_AGENT = True
@@ -36,6 +37,7 @@ _C.TEST.ANNOTATION_FILE = '../datasets/activitynet/annotations/activity_net.v1-3
 _C.DATA = CfgNode()
 _C.DATA.ENV_FEATURE_DIR = '../datasets/activitynet/c3d_env_features/'
 _C.DATA.AGENT_FEATURE_DIR = '../datasets/activitynet/c3d_agent_features/'
+_C.DATA.CLASSIFICATION_PATH = 'results/classification_results.json'
 _C.DATA.RESULT_PATH = 'results/results.json'
 _C.DATA.FIGURE_PATH = 'results/result_figure.jpg'
 _C.DATA.TEMPORAL_DIM = 100
@@ -59,7 +61,7 @@ _C.BMN.POST_PROCESS = CfgNode()
 _C.BMN.POST_PROCESS.SOFT_NMS_ALPHA = 0.4
 _C.BMN.POST_PROCESS.SOFT_NMS_LOW_THRESHOLD = 0.5
 _C.BMN.POST_PROCESS.SOFT_NMS_HIGH_THRESHOLD = 0.9
-_C.BMN.POST_PROCESS.NUM_THREADS = 8
+_C.BMN.POST_PROCESS.NUM_THREADS = 12
 _C.BMN.POST_PROCESS.MAX_PROPOSALS = 100
 
 

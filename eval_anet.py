@@ -25,7 +25,6 @@ def run_evaluation(ground_truth_filename, proposal_filename,
 
 
 def plot_metric(cfg, average_nr_proposals, average_recall, recall, tiou_thresholds=np.linspace(0.5, 0.95, 10)):
-
     fn_size = 14
     plt.figure(num=None, figsize=(12, 8))
     ax = plt.subplot(1, 1, 1)
